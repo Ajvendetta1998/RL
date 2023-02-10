@@ -3,7 +3,7 @@ import sys
 import random
 
 # Initialize pygame
-pygame.init()
+pygame.init()   
 
 # Set display width and height
 width = 500
@@ -67,6 +67,7 @@ def main():
     direction = "right"
     snake_length = 1
     snake_list = []
+    eaten = False
     prev_direction = "right"
     # Game loop
     while True:
@@ -121,18 +122,21 @@ def main():
         # Display food
         pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
 
+
         # Draw the snake
         draw_snake(snake_list)
-
+        if(eaten):
+            pygame.image.save(pygame.display.get_surface(), "screenshot.bmp")
         # Display score
         display_score(snake_length-1)
 
         # Update the display
         pygame.display.update()
-
+        eaten=False
         # Check if snake hits the food
         if snake_x == food_x and snake_y == food_y:
             food_x, food_y = generate_food()
+            eaten = True
             snake_length += 1
 
         # Set the FPS
