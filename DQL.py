@@ -4,7 +4,7 @@ import numpy as np
 
 class DQL:
     def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.1, 
-                 memory_size=100000, batch_size=1):
+                 memory_size=1000, batch_size=10):
         self.model = model
         self.actions = actions
         self.discount_factor = discount_factor

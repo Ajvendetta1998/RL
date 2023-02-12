@@ -10,6 +10,7 @@ from copy import deepcopy
 from keras.utils import plot_model
 import imageio
 from DQL import DQL 
+import tensorflow as tf 
 
 # Set display width and height
 width = 500
@@ -21,17 +22,23 @@ def snapShot(frame):
 def initNN():
     num_classes = 4
 
-    # Define the CNN architecture
-    model = Sequential()
-    model.add(TimeDistributed(Conv2D(32, (3, 3), activation='relu'), input_shape=(None, height, width, 3)))
-    model.add(TimeDistributed(MaxPooling2D((5, 5))))
-    model.add(TimeDistributed(Flatten()))
-    model.add(LSTM(128, return_sequences=False))
-    model.add(Dense(num_classes, activation='softmax'))
 
+    # Define the model
+    model = tf.keras.Sequential([
+        tf.keras.layers.Conv2D(10, (20,20), activation='relu', input_shape=(width,3* height, 3)),
+        tf.keras.layers.MaxPooling2D((20,20)),
+        tf.keras.layers.Conv2D(10, (5,5), activation='relu'),
+        tf.keras.layers.MaxPooling2D((2,2)),
+        tf.keras.layers.Conv2D(10, (3,3), activation='relu'),
+        tf.keras.layers.Flatten(),
+        tf.keras.layers.Dense(10, activation='relu'),
+        tf.keras.layers.Dense(num_classes, activation='softmax')
+    ])
+    print(model.summary())
     # Compile the model
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True)
+
+
     return model
 
 actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
@@ -39,14 +46,16 @@ actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
 
 def state():
     # Load the image
-    img = np.array([imageio.imread('frame0.bmp'),imageio.imread('frame1.bmp'),imageio.imread('frame2.bmp')])
-
+    img = np.concatenate((imageio.imread('frame0.bmp'), imageio.imread('frame1.bmp'), imageio.imread('frame2.bmp')), axis=1)
     # Preprocess the data
     # Convert the data type to float32 and scale the pixel values
     img = img.astype('float32')
     img /= 255
-    img = img.reshape(1,3, height, width, 3)
+    img = img.reshape(1, height, 3*width, 3)
+    # Preprocess the data
+    img = tf.keras.applications.resnet.preprocess_input(img)
     return img
+
 def reward(action,snake_list):
     copy = deepcopy(snake_list)
     p = copy[-1]
@@ -63,6 +72,7 @@ def reward(action,snake_list):
     return (-np.inf)
 
 model = initNN()
+
 dql = DQL(model,actions.values())
 # Initialize pygame
 pygame.init()   
@@ -272,8 +282,8 @@ def main():
             snake_length += 1
 
         # Set the FPS
-        clock.tick(fps)
+        #clock.tick(fps)
 #main()
-num_episodes =10
+num_episodes =1000
 for i in range(num_episodes):
     main()
