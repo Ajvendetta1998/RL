@@ -43,7 +43,7 @@ def game_over():
 
 def display_score(score):
     # Display current score
-    text = font.render("Score: " + str(score), True, white)
+    text = font.render("Score: " + str(score), True, black)
     screen.blit(text, [0,0])
 
 def draw_snake(snake_list):
