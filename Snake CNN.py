@@ -1,6 +1,47 @@
 import pygame
 import sys
 import random
+import numpy as np
+
+from keras.models import Sequential
+from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+from keras.preprocessing.image import ImageDataGenerator
+
+from keras.utils import plot_model
+import imageio
+
+
+def initNN():
+    num_classes = 4
+
+    # Define the CNN architecture
+    model = Sequential()
+    model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(500, 500, 3)))
+    model.add(MaxPooling2D((2, 2)))
+    model.add(Flatten())
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+
+    # Compile the model
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    plot_model(model, to_file='model.png', show_shapes=True, show_layer_names=True)
+    return model
+actions = ["up","down","right","left"]
+def nextMove(model):
+    # Load the image
+    img = imageio.imread('screenshot.bmp')
+
+    # Convert the image to a numpy array
+    img = np.array(img).reshape(1, 500, 500, 3)
+
+    # Preprocess the data
+    # Convert the data type to float32 and scale the pixel values
+    img = img.astype('float32')
+    img /= 255
+    print(actions[np.argmax(model.predict(img))])
+
+model = initNN()
+
 
 # Initialize pygame
 pygame.init()   
@@ -58,6 +99,7 @@ def generate_food():
     return food_x, food_y
 
 def main():
+    
     # Initial snake position and food
     snake_x = 150
     snake_y = 150
@@ -71,6 +113,7 @@ def main():
     prev_direction = "right"
     # Game loop
     while True:
+        nextMove(model)
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 # Start a new game
@@ -127,6 +170,7 @@ def main():
         draw_snake(snake_list)
         if(eaten):
             pygame.image.save(pygame.display.get_surface(), "screenshot.bmp")
+
         # Display score
         display_score(snake_length-1)
 
