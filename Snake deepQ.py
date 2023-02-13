@@ -13,8 +13,8 @@ from DQL import DQL
 import tensorflow as tf 
 
 # Set display width and height
-width = 500
-height = 500
+width = 130
+height = 130
 def snapShot(frame):
     pygame.image.save(pygame.display.get_surface(), "frame"+str(frame)+".bmp")
 
@@ -23,17 +23,22 @@ def initNN():
     num_classes = 4
 
 
-    # Define the model
-    model = tf.keras.Sequential([
-        tf.keras.layers.Conv2D(5, (10,10), activation='relu', input_shape=(height,3* width, 3)),
-        tf.keras.layers.MaxPooling2D((10,10)),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(10, activation='relu'),
-        tf.keras.layers.Dense(num_classes, activation='softmax')
-    ])
+    # Initialize the model
+    model = Sequential()
+
+    # Add the first dense layer with 128 units and ReLU activation
+    model.add(Dense(5, activation='relu', input_shape=(2*width*height+2,)))
+
+    # Add the second dense layer with 64 units and ReLU activation
+    model.add(Dense(5, activation='relu'))
+
+    # Add the third dense layer with 4 units and softmax activation for the output layer
+    model.add(Dense(4, activation='softmax'))
+
+    # Compile the model using categorical crossentropy loss and the Adam optimizer
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     print(model.summary())
-    # Compile the model
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
 
 
     return model
@@ -41,18 +46,15 @@ def initNN():
 actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
 
 
-def state():
-    # Load the image
-    img = np.concatenate((imageio.imread('frame0.bmp'), imageio.imread('frame1.bmp'), imageio.imread('frame2.bmp')), axis=1)
-    # Preprocess the data
-    # Convert the data type to float32 and scale the pixel values
-    print(img.shape)
-    img = img.astype('float32')
-    img /= 255
-    img = img.reshape(1,height,3*width,3)
-    # Preprocess the data
-    img = tf.keras.applications.resnet.preprocess_input(img)
-    return img
+def state(snake_list,apple):
+    input = np.zeros(width*height*2+2)
+    input[0],input[1] = apple[0],apple[1]
+    u = 2
+    for s in snake_list:
+        input[u],input[u+1] = s[0],s[1]
+        u+=2
+    input=input.reshape(1,width*height*2+2)
+    return input
 
 def reward(action,snake_list):
     copy = deepcopy(snake_list)
@@ -173,8 +175,8 @@ def main():
 
     # Initial snake position and food
     captured_frame =0
-    snake_x = 150        
-    snake_y = 150
+    snake_x = width//2        
+    snake_y = height//2
     snake_list = [[snake_x,snake_y]]
     global food_x,food_y
 
@@ -192,7 +194,7 @@ def main():
     while True:
         useNN = os.path.isfile("frame0.bmp") and os.path.isfile("frame1.bmp") and os.path.isfile("frame2.bmp")
         if(useNN):
-            S_t = state()
+            S_t = state(snake_list,[food_x,food_y])
             a = dql.get_action(S_t)
 
             r = reward(a,snake_list)
@@ -263,7 +265,7 @@ def main():
         snapShot(captured_frame%3)
         captured_frame+=1
         if(useNN):
-            S_t2 = state()
+            S_t2 = state(snake_list,[food_x,food_y])
             dql.add_memory(S_t,a,r,S_t2,False)
             dql.train()
 

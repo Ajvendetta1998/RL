@@ -4,7 +4,7 @@ import numpy as np
 
 class DQL:
     def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.1, 
-                 memory_size=1000, batch_size=10):
+                 memory_size=1000, batch_size=64):
         self.model = model
         self.actions = actions
         self.discount_factor = discount_factor
@@ -36,10 +36,10 @@ class DQL:
             states.append(state[0])
             actions.append(action)
             rewards.append(reward)
-            next_states.append(next_state)
+            next_states.append(next_state[0])
             dones.append(done)
         states = np.array(states)
-
+        print(states.shape)
         next_states = np.array(next_states)
 
         # Calculate the target Q-values
