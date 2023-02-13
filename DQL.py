@@ -4,7 +4,7 @@ import numpy as np
 
 class DQL:
     def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.1, 
-                 memory_size=1000, batch_size=64):
+                 memory_size=100000, batch_size=200):
         self.model = model
         self.actions = actions
         self.discount_factor = discount_factor
@@ -18,7 +18,7 @@ class DQL:
             action = np.random.choice(range(len(self.actions)))
         else:
             # Choose the best action according to the model
-            q_values = self.model.predict(state)
+            q_values = self.model.predict(state,verbose = 0)
             action = np.argmax(q_values[0])
         return action
     
@@ -39,13 +39,12 @@ class DQL:
             next_states.append(next_state[0])
             dones.append(done)
         states = np.array(states)
-        print(states.shape)
         next_states = np.array(next_states)
 
         # Calculate the target Q-values
-        target_q_values = self.model.predict(states)
+        target_q_values = self.model.predict(states,verbose = 0)
 
-        next_q_values = self.model.predict(next_states)
+        next_q_values = self.model.predict(next_states,verbose = 0)
         for i in range(self.batch_size):
             if dones[i]:
                 target_q_values[i][actions[i]] = rewards[i]

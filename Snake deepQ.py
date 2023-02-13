@@ -11,10 +11,11 @@ from keras.utils import plot_model
 import imageio
 from DQL import DQL 
 import tensorflow as tf 
-
+# Snake block size
+block_size = 10
 # Set display width and height
-width = 130
-height = 130
+width = 500
+height = 500
 def snapShot(frame):
     pygame.image.save(pygame.display.get_surface(), "frame"+str(frame)+".bmp")
 
@@ -27,10 +28,9 @@ def initNN():
     model = Sequential()
 
     # Add the first dense layer with 128 units and ReLU activation
-    model.add(Dense(5, activation='relu', input_shape=(2*width*height+2,)))
+    model.add(Dense(20, activation='relu', input_shape=(2*width*height//block_size**2+2,)))
 
-    # Add the second dense layer with 64 units and ReLU activation
-    model.add(Dense(5, activation='relu'))
+  
 
     # Add the third dense layer with 4 units and softmax activation for the output layer
     model.add(Dense(4, activation='softmax'))
@@ -47,13 +47,19 @@ actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
 
 
 def state(snake_list,apple):
-    input = np.zeros(width*height*2+2)
+    s = np.array(snake_list)
+    mini0 = int(min(s[:,0].min(),apple[0])-10)
+    mini1 = int(min(s[:,1].min(),apple[1])-10)
+    apple[0]-=mini0
+    apple[1] -= mini1
+    s[:,0] -= mini0
+    s[:,1] -= mini1
+    input = np.zeros((width*height//block_size**2*2+2))
     input[0],input[1] = apple[0],apple[1]
-    u = 2
-    for s in snake_list:
-        input[u],input[u+1] = s[0],s[1]
-        u+=2
-    input=input.reshape(1,width*height*2+2)
+
+    for u in range(len(snake_list)):
+        input[2*u+2],input[2*u+3] = s[u][0],s[u][1]
+    input=input.reshape(1,width*height//block_size**2*2+2)
     return input
 
 def reward(action,snake_list):
@@ -63,13 +69,14 @@ def reward(action,snake_list):
     (u,v)=(a[action][1]*block_size+p[0],a[action][0]*block_size+p[1])
     if(inBounds(u,v)):
         if([u,v] in snake_list):
-            return(-np.inf)
+            return(-100)
         copy.append([u,v])
         del copy[0]
         global food_x,food_y
         c,acc,dis= compacity(copy),find_accessible_points(copy),((abs(u-food_x)+abs(v-food_y))/(height+width))
+        return(1-dis)
         return(1/c*acc*(1-dis))
-    return (-np.inf)
+    return (-100)
 
 model = initNN()
 
@@ -93,8 +100,7 @@ red = (255, 0, 0)
 # Set clock to control FPS
 clock = pygame.time.Clock()
 
-# Snake block size
-block_size = 10
+
 
 # Font for displaying score
 font = pygame.font.Font(None, 30)
@@ -112,9 +118,9 @@ def game_over():
     pygame.quit()
     sys.exit()'''
 
-def display_score(score):
+def display_score(score,gen):
     # Display current score
-    text = font.render("Score: " + str(score), True, black)
+    text = font.render("Gen: " + str(gen) + " Score: " + str(score), True, black)
     screen.blit(text, [0,0])
 
 def draw_snake(snake_list):
@@ -170,20 +176,18 @@ def compacity(snake_list):
     max_y = snake_list[:,1].max()
     return((max_y-min_y+block_size)*(max_x-min_x+block_size)/(len(snake_list)*block_size**2))   
 food_x, food_y = generate_food([])   
-def main():
-
+def main(gen):
 
     # Initial snake position and food
-    captured_frame =0
     snake_x = width//2        
     snake_y = height//2
     snake_list = [[snake_x,snake_y]]
     global food_x,food_y
 
-
+    episode_length =0 
     # Initial snake direction and length
     direction = "right"
-    snake_length = 10
+    snake_length = 20
     
 
     prev_direction = "right"
@@ -198,6 +202,7 @@ def main():
             a = dql.get_action(S_t)
 
             r = reward(a,snake_list)
+
         snake_x+=acts[a][1]*block_size
         snake_y+=acts[a][0]*block_size
         '''
@@ -238,7 +243,7 @@ def main():
         '''
         # Check if snake hits the boundaries
         if snake_x >= width or snake_x < 0 or snake_y >= height or snake_y < 0:
-            return snake_length
+            return [snake_length,episode_length]
             #game_over()
 
         # Add new block of snake to the list
@@ -252,7 +257,7 @@ def main():
         # Check if snake hits itself
         for block in snake_list[:-1]:
             if block[0] == snake_x and block[1] == snake_y:
-                return snake_length
+                return [snake_length,episode_length]
         # Fill the screen with white color
         screen.fill(white)
 
@@ -262,15 +267,14 @@ def main():
 
         # Draw the snake
         draw_snake(snake_list)
-        snapShot(captured_frame%3)
-        captured_frame+=1
+
         if(useNN):
             S_t2 = state(snake_list,[food_x,food_y])
             dql.add_memory(S_t,a,r,S_t2,False)
             dql.train()
 
         # Display score
-        display_score(snake_length-1)
+        display_score(snake_length-1,gen)
 
         # Update the display
         pygame.display.update()
@@ -278,10 +282,11 @@ def main():
         if snake_x == food_x and snake_y == food_y:
             food_x, food_y = generate_food(snake_list)
             snake_length += 1
-
+        episode_length+=1
         # Set the FPS
         #clock.tick(fps)
 #main()
-num_episodes =1000
+num_episodes =1000000
 for i in range(num_episodes):
-    main()
+    a= main(i)
+    print("Gen " + str(i) + " Score : " + str(a[0]) + " Episode length : "+str(a[1]))
