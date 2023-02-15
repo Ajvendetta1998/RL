@@ -12,7 +12,8 @@ class DQL:
         self.batch_size = batch_size
         self.decay_rate = decay_rate
         self.base_exploration_rate = base_exploration_rate
-    
+        self.evalmemory = deque(maxlen = memory_size)
+        
     def get_action(self, state):
         if np.random.rand() < self.base_exploration_rate + self.exploration_rate:
             # Choose a random action
@@ -21,11 +22,16 @@ class DQL:
             # Choose the best action according to the model
             q_values = self.model.predict(state,verbose = 0)
             action = np.argmax(q_values)
-
         return action
     
     def add_memory(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        x = np.random.rand()
+
+        if(x<0.5):
+            self.memory.append((state, action, reward, next_state, done))
+        else:
+            self.evalmemory.append((state, action, reward, next_state, done))
+
     
     def train(self):
         if len(self.memory) < self.batch_size:
@@ -58,5 +64,31 @@ class DQL:
             else:
                 target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
         # Train the model with the target Q-values
-        self.model.fit(states, target_q_values, batch_size=self.batch_size, verbose=0)
+        self.model.fit(states, target_q_values, verbose=0)
 
+    def evaluate(self):
+        if len(self.evalmemory) < self.batch_size:
+            # Not enough memories to train the model
+            return
+        batch = list(self.evalmemory)
+        states, actions, rewards, next_states, dones = [], [], [], [], []
+        for state, action, reward, next_state, done in batch:
+            states.append(state[0])
+            actions.append(action)
+            rewards.append(reward)
+            next_states.append(next_state[0])
+            dones.append(done)
+        states = np.array(states)
+        next_states = np.array(next_states)
+        # Calculate the target Q-values
+        next_q_values = self.model.predict(next_states,verbose = 0)
+        target_q_values = np.zeros((len(batch),len(self.actions)))
+
+        for i in range(len(batch)):
+            if dones[i]:
+                target_q_values[i][actions[i]] = rewards[i]
+
+            else:
+                target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
+
+        self.model.evaluate(states, target_q_values)
