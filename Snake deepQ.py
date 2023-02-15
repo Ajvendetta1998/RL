@@ -14,16 +14,18 @@ import tensorflow as tf
 block_size = 10
 
 # Set display width and height
-width = 100
-height = 100
+width = 300
+height = 300
 
 #dictionary of possible actions 
 actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
-#the snake + apple 
+
+#(x,y) apple + snake  
 input_size = 2*width*height//block_size**2+2
+
 #input_size = 4
 def initNN():
-    num_classes = 4
+
     model = Sequential()
     model.add(Dense(256, input_shape=(input_size,), activation='sigmoid'))
     model.add(Dense(128,activation = 'ReLU'))
@@ -69,27 +71,25 @@ def reward(action, snake_list):
     p = copy[-1]
     a = list(actions.values())
     (u,v)=(a[action][1]*block_size+p[0],a[action][0]*block_size+p[1])
-    if inBounds(u, v):
-        if [u,v] in snake_list:
-            return -1 # return a negative reward if the snake collides with itself
-        copy.append([u,v])
-        del copy[0]
-        
-        global food_x, food_y
-        # reward the agent for getting closer to the food
-        reward_distance = (1 - distance2(u,v,food_x,food_y)) 
-        # reward the agent for eating the food
-        reward_eat = 10 if u == food_x and v == food_y else 0
-        # penalize the agent for moving away from the food
-        penalty_distance = -1 if distance(u,v,food_x,food_y) > distance(p[0], p[1], food_x, food_y) else 0
-        # penalize the agent for hitting a wall
-        penalty_wall = -1 if (u == 0 or v == 0 or u == width-block_size or v == height-block_size) else 0
-        # combine all rewards and penalties
-        total_reward = reward_distance*2 + reward_eat + penalty_distance + penalty_wall
-        return total_reward
-    else:
-        return -1 # return a negative reward if the snake goes out of bounds
-
+    penalty_touch_self = 0 
+    if [u,v] in snake_list:
+        penalty_touch_self=-1 # return a negative reward if the snake collides with itself
+    copy.append([u,v])
+    del copy[0]
+    
+    global food_x, food_y
+    # reward the agent for getting closer to the food
+    reward_distance = (1 - distance2(u,v,food_x,food_y)) 
+    # reward the agent for eating the food
+    reward_eat = 10 if u == food_x and v == food_y else 0
+    # penalize the agent for moving away from the food
+    penalty_distance = -1 if distance(u,v,food_x,food_y) > distance(p[0], p[1], food_x, food_y) else 0
+    # penalize the agent for hitting a wall
+    penalty_wall = -1 if (u == 0 or v == 0 or u == width-block_size or v == height-block_size) else 0
+    # combine all rewards and penalties
+    total_reward = reward_distance*2 + reward_eat + penalty_distance + penalty_wall + penalty_touch_self
+    
+    return total_reward
 
 #initialize NN
 model = initNN()
@@ -167,10 +167,7 @@ def find_accessible_points(snake_list):
     explore = [head_position]
 
     while(len(explore)>0):
-
         p = explore.pop()
-
-
         accessible_points[p[1]//block_size,p[0]//block_size]=1
         for m in actions.values():
             (u,v)=(m[1]*block_size+p[0],m[0]*block_size+p[1])
@@ -215,10 +212,10 @@ def main(gen,length):
 
         S_t = state(snake_list,[food_x,food_y])
         prev_a = a 
-        b = dql.get_action(S_t)
+        a = dql.get_action(S_t)
         
-        if(not(abs(a-prev_a)==1 and ((prev_a<2 and a<2) or (prev_a>1 and a>1)))):
-            a =b
+        #if(not(abs(a-prev_a)==1 and ((prev_a<2 and a<2) or (prev_a>1 and a>1)))):
+            #a =b
         
         r = reward(a,snake_list)
         snake_x+=acts[a][1]*block_size
@@ -252,10 +249,10 @@ def main(gen,length):
         draw_snake(snake_list)
 
         S_t2 = state(snake_list,[food_x,food_y])
+        #add to Buffer
         dql.add_memory(S_t,a,r,S_t2,done)
-        dql.train()
-        if(done):
-            return [snake_length,episode_length]
+        #dql.train()
+
 
         # Display score
         #display_score(snake_length-1,gen)
@@ -267,18 +264,28 @@ def main(gen,length):
             food_x, food_y = generate_food(snake_list)
             snake_length += 1
         episode_length+=1
+        if(done):
+            return [snake_length,episode_length]
         # Set the FPS
-        clock.tick(fps)
+        #clock.tick(fps)
 #main()
 num_episodes =1000000
+
+
+
 m =0 
-max_length = 5 
+max_length = 10 
+max_max_length = width*height//block_size**2
+
+
+
+#generation des generations
 for i in range(num_episodes):
-    a= main(i,np.random.randint(1,max_length+1))
+    a= main(i,np.random.randint(1,max_length))
     m = max(a[0],m)
-    if((i+1)%5==0):
+    if((i+1)%30==0):
         max_length+=1
     dql.evaluate()
-    #dql.train()
+    dql.train()
     #print("Gen " + str(i) + " Score : " + str(a[0]) + " Episode length : "+str(a[1]) + " max length "+str(m)+ "Exploration rate "+ str(dql.exploration_rate))
 
