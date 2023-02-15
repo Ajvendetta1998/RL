@@ -8,7 +8,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from copy import deepcopy
 from DQL import DQL 
 import tensorflow as tf 
-
+import sys
 
 # Snake block size
 block_size = 10
@@ -210,6 +210,24 @@ def main(gen,length):
     acts = list(actions.values())
     # Game loop
     while True:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                # Start a new game
+                main()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            # Change direction based on user key press
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP and direction != "down":
+                    direction = "up"
+                if event.key == pygame.K_DOWN and direction != "up":
+                    direction = "down"
+                if event.key == pygame.K_LEFT and direction != "right":
+                    direction = "left"
+                if event.key == pygame.K_RIGHT and direction != "left":
+                    direction = "right"
 
 
         S_t = state(snake_list,[food_x,food_y])
@@ -273,89 +291,6 @@ def main(gen,length):
 #main()
 num_episodes =1000000
 
-def main():
-    # Initial snake position and food
-    snake_x = 150
-    snake_y = 150
-    food_x, food_y = generate_food()
-
-    # Initial snake direction and length
-    direction = "right"
-    snake_length = 1
-    snake_list = []
-
-    prev_direction = "right"
-    # Game loop
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                # Start a new game
-                main()
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-            # Change direction based on user key press
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP and direction != "down":
-                    direction = "up"
-                if event.key == pygame.K_DOWN and direction != "up":
-                    direction = "down"
-                if event.key == pygame.K_LEFT and direction != "right":
-                    direction = "left"
-                if event.key == pygame.K_RIGHT and direction != "left":
-                    direction = "right"
-
-        # Move the snake
-        if (snake_length ==1 and direction=="left") or (direction == "left" and not prev_direction == "right"):
-            snake_x -= block_size
-        if (snake_length ==1 and direction=="right") or (direction == "right" and not prev_direction == "left"):
-            snake_x += block_size
-        if (snake_length ==1 and direction=="up") or (direction == "up" and not prev_direction == "down"):
-            snake_y -= block_size
-        if (snake_length ==1 and direction=="down") or (direction == "down" and not prev_direction == "up"):
-            snake_y += block_size
-        prev_direction = direction
-        # Check if snake hits the boundaries
-        if snake_x >= width or snake_x < 0 or snake_y >= height or snake_y < 0:
-            game_over()
-
-        # Add new block of snake to the list
-        snake_list.append([snake_x, snake_y])
-
-        # Keep the length of snake same as snake_length
-        if len(snake_list) > snake_length:
-            del snake_list[0]
-
-        # Check if snake hits itself
-        for block in snake_list[:-1]:
-            if block[0] == snake_x and block[1] == snake_y:
-                game_over()
-
-        # Fill the screen with white color
-        screen.fill(white)
-
-        # Display food
-        pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
-
-
-        # Draw the snake
-        draw_snake(snake_list)
-
-        # Display score
-        display_score(snake_length-1)
-
-        # Update the display
-        pygame.display.update()
-
-        # Check if snake hits the food
-        if snake_x == food_x and snake_y == food_y:
-            food_x, food_y = generate_food()
-            snake_length += 1
-
-        # Set the FPS
-        clock.tick(fps)
-main()
 
 
 m =0 
