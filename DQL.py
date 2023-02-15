@@ -3,23 +3,25 @@ from collections import deque
 import numpy as np
 
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.1, 
-                 memory_size=100000, batch_size=200):
+    def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.4, memory_size=100000, batch_size=20, decay_rate=0.995, base_exploration_rate = 0.1):
         self.model = model
         self.actions = actions
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
         self.memory = deque(maxlen=memory_size)
         self.batch_size = batch_size
+        self.decay_rate = decay_rate
+        self.base_exploration_rate = base_exploration_rate
     
     def get_action(self, state):
-        if np.random.rand() < self.exploration_rate:
+        if np.random.rand() < self.base_exploration_rate + self.exploration_rate:
             # Choose a random action
             action = np.random.choice(range(len(self.actions)))
         else:
             # Choose the best action according to the model
             q_values = self.model.predict(state,verbose = 0)
-            action = np.argmax(q_values[0])
+            action = np.argmax(q_values)
+
         return action
     
     def add_memory(self, state, action, reward, next_state, done):
@@ -41,17 +43,20 @@ class DQL:
         states = np.array(states)
         next_states = np.array(next_states)
 
-        # Calculate the target Q-values
-        target_q_values = self.model.predict(states,verbose = 0)
+        # Decrease the exploration rate
+        self.exploration_rate *= self.decay_rate
 
+        
+        # Calculate the target Q-values
         next_q_values = self.model.predict(next_states,verbose = 0)
+        target_q_values = np.zeros((self.batch_size,len(self.actions)))
+
         for i in range(self.batch_size):
             if dones[i]:
                 target_q_values[i][actions[i]] = rewards[i]
-            else:
-                target_q_values[i][actions[i]] = rewards[i] + \
-                    self.discount_factor * np.amax(next_q_values[i])
 
+            else:
+                target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
         # Train the model with the target Q-values
         self.model.fit(states, target_q_values, batch_size=self.batch_size, verbose=0)
-        return(states.shape, "hello " , target_q_values.shape)
+

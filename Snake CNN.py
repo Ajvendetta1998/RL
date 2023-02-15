@@ -11,8 +11,7 @@ from keras.utils import plot_model
 import imageio
 from DQL import DQL 
 import tensorflow as tf 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 # Set display width and height
 width = 500
 height = 500
@@ -47,7 +46,6 @@ def state():
     img = np.concatenate((imageio.imread('frame0.bmp'), imageio.imread('frame1.bmp'), imageio.imread('frame2.bmp')), axis=1)
     # Preprocess the data
     # Convert the data type to float32 and scale the pixel values
-    print(img.shape)
     img = img.astype('float32')
     img /= 255
     img = img.reshape(1,height,3*width,3)

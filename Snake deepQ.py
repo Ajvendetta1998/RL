@@ -1,67 +1,70 @@
 import pygame
-import sys
 import random
 import numpy as np
 import os
 from keras.models import Sequential
-from keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, TimeDistributed, LSTM
+from keras.layers import Dense
 from keras.preprocessing.image import ImageDataGenerator
 from copy import deepcopy
-from keras.utils import plot_model
-import imageio
 from DQL import DQL 
 import tensorflow as tf 
+
+
 # Snake block size
 block_size = 10
+
 # Set display width and height
 width = 500
 height = 500
-def snapShot(frame):
-    pygame.image.save(pygame.display.get_surface(), "frame"+str(frame)+".bmp")
 
+#dictionary of possible actions 
+actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
+input_size = 2*width*height//block_size**2+2
+
+input_size =10 
 
 def initNN():
     num_classes = 4
-
-
     # Initialize the model
     model = Sequential()
 
     # Add the first dense layer with 128 units and ReLU activation
-    model.add(Dense(20, activation='relu', input_shape=(2*width*height//block_size**2+2,)))
-
-  
-
+    model.add(Dense(15, activation='ReLU', input_shape=(input_size,)))
+    model.add(Dense(28,activation='ReLU'))
     # Add the third dense layer with 4 units and softmax activation for the output layer
-    model.add(Dense(4, activation='softmax'))
-
+    model.add(Dense(num_classes, activation='sigmoid'))
     # Compile the model using categorical crossentropy loss and the Adam optimizer
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
     print(model.summary())
-
-
-
     return model
 
-actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
 
-
+#returns a vector that has the state of snake and apple
 def state(snake_list,apple):
     s = np.array(snake_list)
+
     mini0 = int(min(s[:,0].min(),apple[0])-10)
     mini1 = int(min(s[:,1].min(),apple[1])-10)
-    apple[0]-=mini0
-    apple[1] -= mini1
-    s[:,0] -= mini0
-    s[:,1] -= mini1
+    
+    #apple[0]-=mini0
+    #apple[1] -= mini1
+    #s[:,0] -= mini0
+    #s[:,1] -= mini1
     input = np.zeros((width*height//block_size**2*2+2))
-    input[0],input[1] = apple[0],apple[1]
-
+    input = np.zeros(input_size)
+    input[0],input[1] = apple[0]/width,apple[1]/height
     for u in range(len(snake_list)):
-        input[2*u+2],input[2*u+3] = s[u][0],s[u][1]
-    input=input.reshape(1,width*height//block_size**2*2+2)
+        if(2*u+2>=input_size):
+            break
+        input[2*u+2],input[2*u+3]= s[len(snake_list)-1-u][0]/width,s[len(snake_list)-1-u][1]/height
+    input=input.reshape(1,input_size)
+
+
     return input
 
+def distance(u,v,food_x,food_y):
+    return np.sqrt((((u-food_x)/width)**2+((v-food_y)/height)**2))
+#reward function for each state and action
 def reward(action,snake_list):
     copy = deepcopy(snake_list)
     p = copy[-1]
@@ -69,17 +72,22 @@ def reward(action,snake_list):
     (u,v)=(a[action][1]*block_size+p[0],a[action][0]*block_size+p[1])
     if(inBounds(u,v)):
         if([u,v] in snake_list):
-            return(-100)
+            return(-1000000)
         copy.append([u,v])
         del copy[0]
         global food_x,food_y
-        c,acc,dis= compacity(copy),find_accessible_points(copy),((abs(u-food_x)+abs(v-food_y))/(height+width))
-        return(1-dis)
+        if(distance(u,v,food_x,food_y) ==0 ):
+            return 100000
+        c,acc,dis= compacity(copy),find_accessible_points(copy),(1.0/distance(u,v,food_x,food_y))
+
+    
+        return dis
         return(1/c*acc*(1-dis))
-    return (-100)
+    return (-1000000)
 
+#initialize NN
 model = initNN()
-
+#initialize deepQ
 dql = DQL(model,actions.values())
 # Initialize pygame
 pygame.init()   
@@ -187,63 +195,30 @@ def main(gen):
     episode_length =0 
     # Initial snake direction and length
     direction = "right"
-    snake_length = 20
+    snake_length =30
     
 
     prev_direction = "right"
     a=0
-
+    done = False
     acts = list(actions.values())
     # Game loop
     while True:
-        useNN = os.path.isfile("frame0.bmp") and os.path.isfile("frame1.bmp") and os.path.isfile("frame2.bmp")
-        if(useNN):
-            S_t = state(snake_list,[food_x,food_y])
+
+
+        S_t = state(snake_list,[food_x,food_y])
+        prev_a = a 
+        a = dql.get_action(S_t)
+        while(abs(a-prev_a)==1 and ((prev_a<2 and a<2) or (prev_a>1 and a>1))):
             a = dql.get_action(S_t)
-
-            r = reward(a,snake_list)
-
+        
+        r = reward(a,snake_list)
         snake_x+=acts[a][1]*block_size
         snake_y+=acts[a][0]*block_size
-        '''
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                # Start a new game
-                main()
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
-            # Change direction based on user key press
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_DOWN and direction != "up":
-                    direction = "down"
-                    a=1
-                if event.key == pygame.K_UP and direction != "down":
-                    direction = "up"
-                    a=0
-                if event.key == pygame.K_LEFT and direction != "right":
-                    direction = "left"
-                    a=2
-                if event.key == pygame.K_RIGHT and direction != "left":
-                    direction = "right"
-                    a=3
-
-        print(reward(a,snake_list))
-        # Move the snake
-        if (snake_length ==1 and direction=="left") or (direction == "left" and not prev_direction == "right"):
-            snake_x -= block_size
-        if (snake_length ==1 and direction=="right") or (direction == "right" and not prev_direction == "left"):
-            snake_x += block_size
-        if (snake_length ==1 and direction=="up") or (direction == "up" and not prev_direction == "down"):
-            snake_y -= block_size
-        if (snake_length ==1 and direction=="down") or (direction == "down" and not prev_direction == "up"):
-            snake_y += block_size
-        prev_direction = direction
-        '''
+       
         # Check if snake hits the boundaries
         if snake_x >= width or snake_x < 0 or snake_y >= height or snake_y < 0:
-            return [snake_length,episode_length]
+            done = True
             #game_over()
 
         # Add new block of snake to the list
@@ -257,7 +232,7 @@ def main(gen):
         # Check if snake hits itself
         for block in snake_list[:-1]:
             if block[0] == snake_x and block[1] == snake_y:
-                return [snake_length,episode_length]
+                done = True
         # Fill the screen with white color
         screen.fill(white)
 
@@ -268,13 +243,14 @@ def main(gen):
         # Draw the snake
         draw_snake(snake_list)
 
-        if(useNN):
-            S_t2 = state(snake_list,[food_x,food_y])
-            dql.add_memory(S_t,a,r,S_t2,False)
-            dql.train()
+        S_t2 = state(snake_list,[food_x,food_y])
+        dql.add_memory(S_t,a,r,S_t2,done)
+        #dql.train()
+        if(done):
+            return [snake_length,episode_length]
 
         # Display score
-        display_score(snake_length-1,gen)
+        #display_score(snake_length-1,gen)
 
         # Update the display
         pygame.display.update()
@@ -284,9 +260,12 @@ def main(gen):
             snake_length += 1
         episode_length+=1
         # Set the FPS
-        #clock.tick(fps)
+        clock.tick(fps)
 #main()
 num_episodes =1000000
+m =0 
 for i in range(num_episodes):
     a= main(i)
-    print("Gen " + str(i) + " Score : " + str(a[0]) + " Episode length : "+str(a[1]))
+    m = max(a[0],m)
+    dql.train()
+    print("Gen " + str(i) + " Score : " + str(a[0]) + " Episode length : "+str(a[1]) + " max length "+str(m)+ "Exploration rate "+ str(dql.exploration_rate))
