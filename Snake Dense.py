@@ -194,8 +194,8 @@ food_x, food_y = generate_food([])
 def main(gen,length):
 
     # Initial snake position and food
-    snake_x = width//2        
-    snake_y = height//2
+    snake_x = (width//block_size)//2     * block_size   
+    snake_y = (height//block_size)//2     * block_size   
 
     snake_list = [[snake_x,snake_y]]
     global food_x,food_y
@@ -220,17 +220,6 @@ def main(gen,length):
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
-            # Change direction based on user key press
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP and direction != "down":
-                    direction = "up"
-                if event.key == pygame.K_DOWN and direction != "up":
-                    direction = "down"
-                if event.key == pygame.K_LEFT and direction != "right":
-                    direction = "left"
-                if event.key == pygame.K_RIGHT and direction != "left":
-                    direction = "right"
 
 
         S_t = state(snake_list,[food_x,food_y])
