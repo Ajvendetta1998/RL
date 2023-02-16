@@ -14,8 +14,8 @@ import sys
 block_size = 10
 
 # Set display width and height
-width = 500
-height = 500
+width = 150
+height = 150
 
 #dictionary of possible actions 
 actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
@@ -29,7 +29,7 @@ def initNN():
     model = Sequential()
     model.add(Dense(256, input_shape=(input_size,), activation='sigmoid'))
     model.add(Dense(128,activation = 'ReLU'))
-    model.add(Flatten())
+    model.add(Dense(64,activation = 'tanh'))
     model.add(Dense(len(actions), activation='linear'))
 
     # Compile the model using categorical crossentropy loss and the Adam optimizer
@@ -42,12 +42,14 @@ def initNN():
 def state(snake_list,apple):
     s = np.array(snake_list)
 
-    #mini0 = int(min(s[:,0].min(),apple[0])-10)
-    #mini1 = int(min(s[:,1].min(),apple[1])-10)
-    #apple[0]-=mini0
-    #apple[1] -= mini1
-    #s[:,0] -= mini0
-    #s[:,1] -= mini1
+    mini0 = int(min(s[:,0].min(),apple[0]))
+    mini1 = int(min(s[:,1].min(),apple[1]))
+    maxi0 = int(max(s[:,0].max(),apple[0]))
+    maxi1 = int(max(s[:,1].max(),apple[1]))
+    #apple[0]-=(mini0+maxi0-width)//2
+    #apple[1] -= (mini1+maxi1-height)//2
+    #s[:,0] -=(mini0+maxi0-width)//2
+    #s[:,1]-= (mini1+maxi1-height)//2
     input = np.zeros((width*height//block_size**2*2+2))
     input = np.zeros(input_size)
     input[0],input[1] = apple[0]/width,apple[1]/height
@@ -56,7 +58,6 @@ def state(snake_list,apple):
             break
         input[2*u+2],input[2*u+3]= s[len(snake_list)-1-u][0]/width,s[len(snake_list)-1-u][1]/height
     input=input.reshape(1,input_size)
-
 
     return input
 
@@ -87,8 +88,8 @@ def reward(action, snake_list):
     # penalize the agent for hitting a wall
     penalty_wall = -1 if (u == 0 or v == 0 or u == width-block_size or v == height-block_size) else 0
     # combine all rewards and penalties
-    total_reward = reward_distance*2 + reward_eat + penalty_distance + penalty_wall + penalty_touch_self
-    
+    total_reward = reward_distance + reward_eat + penalty_distance + penalty_wall + penalty_touch_self
+
     return total_reward
 
 #initialize NN
@@ -132,9 +133,9 @@ def game_over():
     pygame.quit()
     sys.exit()'''
 
-def display_score(score,gen):
+def display_score(score,gen,s):
     # Display current score
-    text = font.render("Gen: " + str(gen) + " Score: " + str(score), True, black)
+    text = font.render("Gen: " + str(gen) + " Length : " + str(score)+ " Score: " + str(s), True, black)
     screen.blit(text, [0,0])
 
 def draw_snake(snake_list):
@@ -195,9 +196,10 @@ def main(gen,length):
     # Initial snake position and food
     snake_x = width//2        
     snake_y = height//2
+
     snake_list = [[snake_x,snake_y]]
     global food_x,food_y
-
+    #food_x, food_y = generate_food([])   
     episode_length =0 
     # Initial snake direction and length
     direction = "right"
@@ -207,6 +209,7 @@ def main(gen,length):
     prev_direction = "right"
     a=0
     done = False
+    score = 0
     acts = list(actions.values())
     # Game loop
     while True:
@@ -232,7 +235,7 @@ def main(gen,length):
 
         S_t = state(snake_list,[food_x,food_y])
         prev_a = a 
-        a = dql.get_action(S_t)
+        a = dql.get_action(S_t,a,snake_length)
         
         #if(not(abs(a-prev_a)==1 and ((prev_a<2 and a<2) or (prev_a>1 and a>1)))):
             #a =b
@@ -275,7 +278,7 @@ def main(gen,length):
 
 
         # Display score
-        #display_score(snake_length-1,gen)
+        #display_score(snake_length-1,gen,score)
 
         # Update the display
         pygame.display.update()
@@ -283,18 +286,19 @@ def main(gen,length):
         if snake_x == food_x and snake_y == food_y:
             food_x, food_y = generate_food(snake_list)
             snake_length += 1
+            score+=1
         episode_length+=1
         if(done):
-            return [snake_length,episode_length]
+            return [snake_length,episode_length,score]
         # Set the FPS
         #clock.tick(fps)
 #main()
-num_episodes =1000000
+num_episodes =10000000
 
 
 
 m =0 
-max_length = 10 
+max_length = 3
 max_max_length = width*height//block_size**2
 
 
@@ -302,10 +306,14 @@ max_max_length = width*height//block_size**2
 #generation des generations
 for i in range(num_episodes):
     a= main(i,np.random.randint(1,max_length))
-    m = max(a[0],m)
-    if((i+1)%30==0):
+    m = max(a[2],m)
+    if(i%20 ==0):
+        food_x, food_y = generate_food([])   
+    if((i+1)%1000==0):
+        model.save(str(width)+" " + str(height)+" DeepQ.h5")
         max_length+=1
-    dql.evaluate()
     dql.train()
-    #print("Gen " + str(i) + " Score : " + str(a[0]) + " Episode length : "+str(a[1]) + " max length "+str(m)+ "Exploration rate "+ str(dql.exploration_rate))
+    dql.evaluate()
+
+    print("Gen " + str(i) + " Score : " + str(a[2]) + " Episode length : "+str(a[1]) + " max score "+str(m))
 

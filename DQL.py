@@ -1,7 +1,7 @@
 import random
 from collections import deque
 import numpy as np
-
+from itertools import chain
 class DQL:
     def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.4, memory_size=100000, batch_size=20, decay_rate=0.995, base_exploration_rate = 0.1):
         #NN
@@ -22,14 +22,22 @@ class DQL:
         #buffer for evaluation
         self.evalmemory = deque(maxlen = memory_size)
 
-    def get_action(self, state):
+    def get_action(self, state, direction,length):
         if np.random.rand() < self.base_exploration_rate + self.exploration_rate:
             # Choose a random action
-            action = np.random.choice(range(len(self.actions)))
+            l = list(range(0,len(self.actions)))
+
+            l.remove(direction)
+            action = l[np.random.choice(len(self.actions)-1)]
         else:
             # Choose the best action according to the model
             q_values = self.model.predict(state,verbose = 0)
-            action = np.argmax(q_values)
+            sorted = q_values.argsort()
+            action = sorted[0][0]
+            if(action == direction and length>1):
+                action= sorted[0][1]
+
+
         return action
     
     def add_memory(self, state, action, reward, next_state, done):
@@ -102,5 +110,5 @@ class DQL:
 
             else:
                 target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
-
+        #print(np.linalg.norm(target_q_values[0]- self.model.predict(np.array([states[0]]))[0]))
         self.model.evaluate(states, target_q_values)
