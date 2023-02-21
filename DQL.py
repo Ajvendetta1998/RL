@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 from itertools import chain
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.4, memory_size=100000, batch_size=20, decay_rate=0.995, base_exploration_rate = 0.1):
+    def __init__(self, model, actions, discount_factor=0.95, exploration_rate=0.3, memory_size=100000, batch_size=100, decay_rate=0.995, base_exploration_rate = 0.1):
         #NN
         self.model = model
 
@@ -90,7 +90,8 @@ class DQL:
         if len(self.evalmemory) < self.batch_size:
             # Not enough memories to train the model
             return
-        batch = list(self.evalmemory)
+
+        batch = random.sample(self.evalmemory, self.batch_size)
         states, actions, rewards, next_states, dones = [], [], [], [], []
         for state, action, reward, next_state, done in batch:
             states.append(state[0])
@@ -110,5 +111,8 @@ class DQL:
 
             else:
                 target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
-        #print(np.linalg.norm(target_q_values[0]- self.model.predict(np.array([states[0]]))[0]))
-        self.model.evaluate(states, target_q_values)
+        j = np.random.randint(len(target_q_values))
+        #print(target_q_values[j],self.model.predict(np.array([states[j]]))[0])
+        #print(np.linalg.norm(target_q_values[j]-self.model.predict(np.array([states[j]]))[0]))
+        #print(abs(np.argmax(target_q_values[j])- np.argmax(self.model.predict(np.array([states[j]]),verbose = 0)[0])))
+        self.model.evaluate(states, target_q_values ,verbose = 0 )
