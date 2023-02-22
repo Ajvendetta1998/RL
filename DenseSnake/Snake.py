@@ -29,7 +29,7 @@ pygame.init()
 screen = pygame.display.set_mode((width, height))
 
 # Set title for the display window
-pygame.display.set_caption("Snake Game")
+pygame.display.set_caption("Snake Game CNN")
 
 # Define colors
 white = (255, 255, 255)
@@ -86,10 +86,10 @@ def initNNmodel():
 
     # create a CNN
     model = Sequential()
-    model.add(Conv2D(32, (3, 3), input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
+    model.add(Conv2D(32, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
     model.add(Flatten())
+    model.add(Dense(512 , activation = 'ReLU'))
     model.add(Dense(256 , activation = 'ReLU'))
-    model.add(Dense(128,activation = 'ReLU'))
     model.add(Dense(len(actions), activation='linear'))
 
     # Compile the model using mean squared error loss and the Adam optimizer
@@ -148,12 +148,12 @@ def danger_distance(direction, snake_list):
         dis+=1
     return(0)
 #reward function for each state and action
-def reward(action, snake_list):
+def reward(action, snake_list,episode_length):
     copy = deepcopy(snake_list)
     p = copy[-1]
     a = list(actions.values())
     (u,v)=(a[action][1]*block_size+p[0],a[action][0]*block_size+p[1])
-    penalty_touch_self = 1 
+    penalty_touch_self = 0 
     if [u,v] in snake_list:
         penalty_touch_self=-1 # return a negative reward if the snake collides with itself
     copy.append([u,v])
@@ -167,8 +167,8 @@ def reward(action, snake_list):
     # reward the agent for eating the food
     reward_eat = 1 if u == food_x and v == food_y else 0
     # penalize the agent for moving away from the food
-    penalty_distance = -1 if normalized_distance(u,v,food_x,food_y) > normalized_distance(p[0], p[1], food_x, food_y) else 1
-    # penalize the agent for hitting a wall
+    penalty_distance = -2 if normalized_distance(u,v,food_x,food_y) > normalized_distance(p[0], p[1], food_x, food_y) else 1
+    # penalize he agent for hitting a wall
     penalty_wall = -1 if not (inBounds(u,v)) else 0
     #penalize the agent for getting closer to danger
     penalty_danger = danger_distance(action,snake_list)
@@ -176,13 +176,17 @@ def reward(action, snake_list):
     compacity_value = 1/compacity(snake_list)
     #accessible points 
     accessible_points_proportion = find_accessible_points(snake_list)
+
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value])
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity']
-    c = np.array([4,0,0,3,4,0,0,0])
-    total_reward = penalties@c/c.sum()
+    c = np.array([0,1,0,0,10,0,0,0])
+
+    total_reward = penalties@c
+   # total_reward = accessible_points_proportion*gass_reward
+    #total_reward = penalty_distance + 10*reward_eat
     #print(total_reward, penalty_danger)
     #if(inBounds(u,v)):
-       ## heatmap[u//block_size,v//block_size] = total_reward
+     #  heatmap[u//block_size,v//block_size] = total_reward
 
     #print([q+" = "+str(p) + " , " for p,q in zip(penalties,penalty_names)])
     return total_reward
@@ -231,7 +235,7 @@ dql = DQL(model,actions.values())
 food_x, food_y = generate_food([])   
 
 def main(gen,length,maxlen):
-
+    episode_reward = 0
     # Initial snake position and food
     snake_x = (width//block_size)//2     * block_size   
     snake_y = (height//block_size)//2     * block_size   
@@ -270,8 +274,8 @@ def main(gen,length,maxlen):
 
 
         St1 = state(snake_list,[food_x,food_y]) 
-        a = dql.get_action(St1,a,snake_list,block_size,width,height)
-        r = reward(a,snake_list)
+        a= dql.get_action(St1,a,snake_list,block_size,width,height)
+        r = reward(a,snake_list,episode_length-check)
 
         #move snake
         snake_x+=acts[a][1]*block_size
@@ -302,7 +306,7 @@ def main(gen,length,maxlen):
 
         St2 = state(snake_list,[food_x,food_y])
         #add to Buffer
-        dql.add_memory(St1,a,r,St2,done)
+        episode_reward= dql.add_memory(St1,a,r,St2,done,episode_reward)
 
         # Display score and other metrics
         display_score(snake_length-1,gen,score,maxlen)
@@ -318,15 +322,15 @@ def main(gen,length,maxlen):
             check = episode_length
         episode_length+=1
 
-        if(episode_length %200 ==0):
+        if((episode_length-check) %200 ==0):
             dql.train()
         if((episode_length-check)%((width*height//block_size**2)*5) ==0 ):
-            print((episode_length-check))
+  
             dql.exploration_rate/= dql.decay_rate
             done = True
         #if snake has hit something quit
         if(done):
-            return [snake_length,episode_length,score]
+            return [snake_length,episode_length,score,episode_reward]
         
         # Set the FPS
         #clock.tick(fps)
@@ -353,11 +357,11 @@ for i in range(num_episodes):
     if(i%20 ==0):
         food_x, food_y = generate_food([])   
     #increase maximum birth length every 1000 generation 
-    if((i+1)%200==0):
+    if((i+1)%20==0):
         model.save(str(width)+" " + str(height)+" DeepQ.h5")
         max_length+=1
         #dql.exploration_rate = 0.9
-
+    print("episode reward : ", a[-1])
     #train the DQL 
     dql.train()
     dql.evaluate()

@@ -157,7 +157,7 @@ def danger_distance(direction, snake_list):
     return(0)
 #reward function for each state and action
 def reward(action, snake_list):
-    copy = deepcopy(snake_list)
+    copy = deepcopy(snake_list) 
     p = copy[-1]
     a = list(actions.values())
     (u,v)=(a[action][1]*block_size+p[0],a[action][0]*block_size+p[1])
@@ -186,7 +186,7 @@ def reward(action, snake_list):
     accessible_points_proportion = find_accessible_points(snake_list)
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value])
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity']
-    c = np.array([4,2,10,15,20,10,5,20])
+    c = np.array([4,0,0,3,4,0,0,0])
     total_reward = penalties@c/c.sum()
     #print(total_reward, penalty_danger)
     #if(inBounds(u,v)):
