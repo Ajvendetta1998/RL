@@ -175,7 +175,7 @@ def reward(action, snake_list):
     # reward the agent for eating the food
     reward_eat = 1 if u == food_x and v == food_y else 0
     # penalize the agent for moving away from the food
-    penalty_distance = -1 if normalized_distance(u,v,food_x,food_y) > normalized_distance(p[0], p[1], food_x, food_y) else 1
+    penalty_distance = -2 if normalized_distance(u,v,food_x,food_y) > normalized_distance(p[0], p[1], food_x, food_y) else 1
     # penalize the agent for hitting a wall
     penalty_wall = -1 if not (inBounds(u,v)) else 0
     #penalize the agent for getting closer to danger
@@ -186,8 +186,8 @@ def reward(action, snake_list):
     accessible_points_proportion = find_accessible_points(snake_list)
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value])
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity']
-    c = np.array([4,0,0,3,4,0,0,0])
-    total_reward = penalties@c/c.sum()
+    c = np.array([0,1,0,0,0,0,0,0])
+    total_reward = penalties@c
     #print(total_reward, penalty_danger)
     #if(inBounds(u,v)):
        ## heatmap[u//block_size,v//block_size] = total_reward

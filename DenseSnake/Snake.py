@@ -86,10 +86,11 @@ def initNNmodel():
 
     # create a CNN
     model = Sequential()
-    model.add(Conv2D(32, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
+    model.add(Conv2D(80, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
     model.add(Flatten())
     model.add(Dense(512 , activation = 'ReLU'))
     model.add(Dense(256 , activation = 'ReLU'))
+    model.add(Dense(128,activation = 'ReLU'))
     model.add(Dense(len(actions), activation='linear'))
 
     # Compile the model using mean squared error loss and the Adam optimizer
@@ -121,7 +122,7 @@ def state(snake_list,apple):
     input = np.zeros( (3,height//block_size, width//block_size))
     input[0,:,:] = layer_head
     input[1,:,:] = layer_tail
-    input[2,:,:] = layer_tail
+    input[2,:,:] = layer_apple
 
     return(input)
 
@@ -163,7 +164,7 @@ def reward(action, snake_list,episode_length):
     # reward the agent for getting closer to the food
     reward_distance = 1-normalized_distance(u,v,food_x,food_y)
     #if too far then the reward is very close to 0 
-    gass_reward =gaussian_aroundone(reward_distance,5)
+    gass_reward =gaussian_aroundone(reward_distance,20)
     # reward the agent for eating the food
     reward_eat = 1 if u == food_x and v == food_y else 0
     # penalize the agent for moving away from the food
@@ -179,9 +180,10 @@ def reward(action, snake_list,episode_length):
 
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value])
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity']
-    c = np.array([0,1,0,0,10,0,0,0])
+    c = np.array([1,1,1,0,1,1,0,0])
 
-    total_reward = penalties@c
+    total_reward = penalties@c/c.sum()
+
    # total_reward = accessible_points_proportion*gass_reward
     #total_reward = penalty_distance + 10*reward_eat
     #print(total_reward, penalty_danger)
@@ -321,12 +323,12 @@ def main(gen,length,maxlen):
             score+=1
             check = episode_length
         episode_length+=1
-
-        if((episode_length-check) %200 ==0):
-            dql.train()
+#
+       # if(episode_length%1000 ==0):
+       #     dql.train(episode_length)
         if((episode_length-check)%((width*height//block_size**2)*5) ==0 ):
   
-            dql.exploration_rate/= dql.decay_rate
+            #dql.exploration_rate/= dql.decay_rate
             done = True
         #if snake has hit something quit
         if(done):
@@ -341,7 +343,7 @@ num_episodes =10000000
 #maximum score reached
 m =0 
 #initial max length for the snake at birth
-max_length = 20
+max_length = 1
 #maximum allowed length for a snake 
 max_max_length = width*height//block_size**2
 #max_length = width*height//block_size**2//20
@@ -363,5 +365,5 @@ for i in range(num_episodes):
         #dql.exploration_rate = 0.9
     print("episode reward : ", a[-1])
     #train the DQL 
-    dql.train()
+    dql.train(a[1])
     dql.evaluate()

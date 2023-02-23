@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.99, exploration_rate=0.9, memory_size=1000000, batch_size=50,base_decay_rate = 0.99995, decay_rate=0.99452, base_exploration_rate = 0.1,validation_batch_size = 100):
+    def __init__(self, model, actions, discount_factor=0.5, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.95, base_exploration_rate = 0.1,validation_batch_size = 100):
         #NN
         self.model = model
         self.actions = actions
@@ -56,12 +56,12 @@ class DQL:
             self.evalmemory.append((state, action, reward, next_state, done))
         episode_reward=episode_reward*self.discount_factor+reward
         return episode_reward
-    def train(self):
-        if len(self.memory) < self.batch_size:
+    def train(self,batch_size):
+        if len(self.memory) < batch_size:
             # Not enough memories to train the model
             return
         # Randomly sample memories from the replay buffer
-        batch = random.sample(self.memory, self.batch_size)
+        batch = random.sample(self.memory, batch_size)
         states, actions, rewards, next_states, dones = [], [], [], [], []
         for state, action, reward, next_state, done in batch:
             states.append(state)
@@ -80,9 +80,9 @@ class DQL:
         #qw(st+1,a[0],a[1],a[2].. )
         next_q_values = self.model.predict(next_states,verbose = 0)
 
-        target_q_values = np.zeros((self.batch_size,len(self.actions)))
+        target_q_values = np.zeros((batch_size,len(self.actions)))
 
-        for i in range(self.batch_size):
+        for i in range(batch_size):
             if dones[i]:
                 target_q_values[i][actions[i]] = rewards[i]
 
@@ -91,7 +91,7 @@ class DQL:
 
         # Train the model with the target Q-values
         # we want for qw(St,a) to become target_q[a]
-        self.model.fit(states,target_q_values,epochs=5, verbose = 0)
+        self.model.fit(states,target_q_values,epochs=1, verbose = 0)
 
 
     def evaluate(self):
