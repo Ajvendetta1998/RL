@@ -11,7 +11,7 @@ import keras
 import sys 
 import matplotlib.pyplot as plt
 # Snake block size
-block_size = 25
+block_size = 10
 
 
 # Set display width and height
@@ -88,6 +88,7 @@ def initNNmodel():
     model = Sequential()
     model.add(Conv2D(80, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
     model.add(Flatten())
+    model.add(Dense(1024 , activation = 'ReLU'))
     model.add(Dense(512 , activation = 'ReLU'))
     model.add(Dense(256 , activation = 'ReLU'))
     model.add(Dense(128,activation = 'ReLU'))
@@ -177,10 +178,10 @@ def reward(action, snake_list,episode_length):
     compacity_value = 1/compacity(snake_list)
     #accessible points 
     accessible_points_proportion = find_accessible_points(snake_list)
-
-    penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value])
-    penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity']
-    c = np.array([1,1,1,0,1,1,0,0])
+    episode_length_penalty = -episode_length/(width*height//block_size**2+2)/5
+    penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value,episode_length_penalty])
+    penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity','episode_len_penalty']
+    c = np.array([5,1,3,0,1,3,0,0,0])
 
     total_reward = penalties@c/c.sum()
 
