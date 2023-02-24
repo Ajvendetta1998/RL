@@ -15,8 +15,8 @@ block_size = 25
 
 
 # Set display width and height
-width = 500 
-height = 500
+width = 600 
+height = 600
 
 #heatmap = np.zeros((height // block_size, width // block_size))
 #plt.imshow(heatmap, cmap='hot', interpolation='nearest')
@@ -35,7 +35,9 @@ pygame.display.set_caption("Snake Game CNN")
 white = (255, 255, 255)
 black = (0, 0, 0)
 red = (255, 0, 0)
-
+grey = (100,100,100)
+green = (0, 255, 0)
+yellow = (255,255,0)
 # Set clock to control FPS
 clock = pygame.time.Clock()
 
@@ -62,8 +64,11 @@ def display_score(score,gen,s,maxscore):
 
 def draw_snake(snake_list):
     # Draw the snake
-    for block in snake_list:
-        pygame.draw.rect(screen, black, [block[0], block[1], block_size, block_size])
+    for block in snake_list[:-1]:
+        pygame.draw.rect(screen, green, [block[0], block[1], block_size, block_size])
+        pygame.draw.rect(screen, black, [block[0], block[1], block_size, block_size], 1)
+    pygame.draw.rect(screen, yellow, [snake_list[-1][0], snake_list[-1][1], block_size, block_size])
+    pygame.draw.rect(screen, black, [snake_list[-1][0], snake_list[-1][1], block_size, block_size],1)
 
 def generate_food(snake_list):
     # Generate food for the snake where there is no snake
@@ -107,7 +112,7 @@ def initNNmodel():
     model = Sequential()
 
     # Add a 2D convolutional layer with 32 filters, a kernel size of 3x3, and relu activation
-    model.add(Conv2D(100, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
+    model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
 
     # Add a flatten layer to convert the 2D output to a 1D vector
     model.add(Flatten())
@@ -207,9 +212,9 @@ def reward(action, snake_list,episode_length):
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value,episode_length_penalty])
   
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity','episode_len_penalty']
-    c = np.array([0,1,0,0,0,0,0,0,0])
+    c = np.array([4,3,1,0,3,1,0,2,3])
 
-    total_reward = penalties@c/c.sum() 
+    total_reward = 2*penalties@c/c.sum() 
     
 
    # total_reward = accessible_points_proportion*gass_reward
@@ -361,7 +366,7 @@ def main(gen,length,maxlen):
             return [snake_length,episode_length,score,episode_reward]
         
         # Set the FPS
-        #clock.tick(fps)
+        clock.tick(fps)
         #dql.train()
 
 #number of episodes
@@ -369,7 +374,7 @@ num_episodes =10000000
 #maximum score reached
 m =0 
 #initial max length for the snake at birth
-max_length = 10
+max_length = 20
 #maximum allowed length for a snake 
 max_max_length = width*height//block_size**2
 #max_length = width*height//block_size**2//20
@@ -378,7 +383,7 @@ max_max_length = width*height//block_size**2
 #generation of episodes 
 for i in range(num_episodes):
     #do a generation and see the outcome
-    a= main(i,np.random.randint(1,max_length+1),m)
+    a= main(i,np.random.randint(20,max_length+1),m)
     #update maximum score 
     m = max(a[2],m)
     #generate a new food position every 20 generations
