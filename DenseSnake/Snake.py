@@ -10,13 +10,17 @@ import os
 import keras 
 import sys 
 import matplotlib.pyplot as plt
+
+import threading
+import time
+
 # Snake block size
 block_size = 10
 
 
 # Set display width and height
-width = 500 
-height = 500
+width = 200 
+height = 200
 
 #heatmap = np.zeros((height // block_size, width // block_size))
 #plt.imshow(heatmap, cmap='hot', interpolation='nearest')
@@ -327,7 +331,7 @@ def main(gen,length,maxlen):
 #
        # if(episode_length%1000 ==0):
        #     dql.train(episode_length)
-        if((episode_length-check)%((width*height//block_size**2)*5) ==0 ):
+        if((episode_length-check)%((width*height//block_size**2)) ==0 ):
   
             #dql.exploration_rate/= dql.decay_rate
             done = True
@@ -349,14 +353,13 @@ max_length = 1
 max_max_length = width*height//block_size**2
 #max_length = width*height//block_size**2//20
 
-
-#generation of episodes 
-for i in range(num_episodes):
-    #do a generation and see the outcome
+def episode(i, m):
+    global max_length
     a= main(i,np.random.randint(1,max_length+1),m)
     #update maximum score 
     m = max(a[2],m)
     #generate a new food position every 20 generations
+    global food_x, food_y
     if(i%20 ==0):
         food_x, food_y = generate_food([])   
     #increase maximum birth length every 1000 generation 
@@ -368,3 +371,39 @@ for i in range(num_episodes):
     #train the DQL 
     dql.train(a[1])
     dql.evaluate()
+
+start = time.perf_counter()
+#generation of episodes 
+for i in range(1):
+    episode(i, m)
+    ##do a generation and see the outcome
+    #a= main(i,np.random.randint(1,max_length+1),m)
+    ##update maximum score 
+    #m = max(a[2],m)
+    ##generate a new food position every 20 generations
+    #if(i%20 ==0):
+    #    food_x, food_y = generate_food([])   
+    ##increase maximum birth length every 1000 generation 
+    #if((i+1)%20==0):
+    #    model.save(str(width)+" " + str(height)+" DeepQ.h5")
+    #    max_length+=1
+    #    #dql.exploration_rate = 0.9
+    #print("episode reward : ", a[-1])
+    ##train the DQL 
+    #dql.train(a[1])
+    #dql.evaluate()
+finish = time.perf_counter()
+print(f'Normal finished in {round(finish-start, 2)} second(s)')
+
+
+start = time.perf_counter()
+threads = []
+#generation of episodes 
+for i in range(50):
+    t = threading.Thread(target=episode, args=(i,m, ))
+    t.start()
+    threads.append(t)
+for thread in threads:
+    thread.join()
+finish = time.perf_counter()
+print(f'Thread finished in {round(finish-start, 2)} second(s)')
