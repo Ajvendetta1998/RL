@@ -15,8 +15,8 @@ block_size = 25
 
 
 # Set display width and height
-width = 600 
-height = 600
+width = 700 
+height = 700
 
 #heatmap = np.zeros((height // block_size, width // block_size))
 #plt.imshow(heatmap, cmap='hot', interpolation='nearest')
@@ -37,7 +37,7 @@ black = (0, 0, 0)
 red = (255, 0, 0)
 grey = (100,100,100)
 green = (0, 255, 0)
-yellow = (255,255,0)
+dark_green = (0, 100, 0)
 # Set clock to control FPS
 clock = pygame.time.Clock()
 
@@ -59,7 +59,7 @@ def game_over():
 
 def display_score(score,gen,s,maxscore):
     # Display current score
-    text = font.render("Gen: " + str(gen) + " Length : " + str(score)+ " Score: " + str(s) + " Max_score : "+str(maxscore), True, black)
+    text = font.render("Generation no: " + str(gen) + " Length : " + str(score)+ " Score : " + str(s) + " MaxScore : "+str(maxscore), True, grey)
     screen.blit(text, [0,0])
 
 def draw_snake(snake_list):
@@ -67,7 +67,7 @@ def draw_snake(snake_list):
     for block in snake_list[:-1]:
         pygame.draw.rect(screen, green, [block[0], block[1], block_size, block_size])
         pygame.draw.rect(screen, black, [block[0], block[1], block_size, block_size], 1)
-    pygame.draw.rect(screen, yellow, [snake_list[-1][0], snake_list[-1][1], block_size, block_size])
+    pygame.draw.rect(screen, dark_green, [snake_list[-1][0], snake_list[-1][1], block_size, block_size])
     pygame.draw.rect(screen, black, [snake_list[-1][0], snake_list[-1][1], block_size, block_size],1)
 
 def generate_food(snake_list):
@@ -335,6 +335,7 @@ def main(gen,length,maxlen):
 
         # Display food
         pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
+        pygame.draw.rect(screen, green, [food_x + block_size/3, food_y, block_size/3, block_size/3])
 
         # Draw the snake
         draw_snake(snake_list)
