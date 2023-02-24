@@ -45,7 +45,7 @@ clock = pygame.time.Clock()
 font = pygame.font.Font(None, 30)
 
 # FPS
-fps = 2
+fps = 6
 
 def game_over():
     # Display Game Over message
@@ -56,10 +56,10 @@ def game_over():
     pygame.time.wait(3000)
     pygame.quit()
     sys.exit()'''
-
-def display_score(score,gen,s,maxscore):
+lens = []
+def display_score(score,gen,s,maxscore,episode_len):
     # Display current score
-    text = font.render("Generation no: " + str(gen) + " Length : " + str(score)+ " Score : " + str(s) + " MaxScore : "+str(maxscore), True, grey)
+    text = font.render("Gen:" + str(gen) + " Len:" + str(score)+ " Scr: " + str(s) + " MaxScr: "+str(maxscore) + " EpLen: "+str(episode_len)+ " AvgLe: "+str(np.average(lens)), True, grey)
     screen.blit(text, [0,0])
 
 def draw_snake(snake_list):
@@ -345,13 +345,14 @@ def main(gen,length,maxlen):
         episode_reward= dql.add_memory(St1,a,r,St2,done,episode_reward)
 
         # Display score and other metrics
-        display_score(snake_length-1,gen,score,maxlen)
+        display_score(snake_length-1,gen,score,maxlen,episode_length-check,)
 
         # Update the display
         pygame.display.update()
 
         # Check if snake hits the food
         if snake_x == food_x and snake_y == food_y:
+            lens.append(episode_length-check)
             food_x, food_y = generate_food(snake_list)
             snake_length += 1
             score+=1
@@ -367,7 +368,7 @@ def main(gen,length,maxlen):
             return [snake_length,episode_length,score,episode_reward]
         
         # Set the FPS
-        clock.tick(fps)
+        #clock.tick(fps)
         #dql.train()
 
 #number of episodes
@@ -384,7 +385,7 @@ max_max_length = width*height//block_size**2
 #generation of episodes 
 for i in range(num_episodes):
     #do a generation and see the outcome
-    a= main(i,np.random.randint(20,max_length+1),m)
+    a= main(i,np.random.randint(1,max_length+1),m)
     #update maximum score 
     m = max(a[2],m)
     #generate a new food position every 20 generations
