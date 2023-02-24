@@ -11,7 +11,7 @@ import keras
 import sys 
 import matplotlib.pyplot as plt
 # Snake block size
-block_size = 10
+block_size = 25
 
 
 # Set display width and height
@@ -82,11 +82,11 @@ actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
 input_size = 2*width*height//block_size**2+2
 
 
-def initNNmodel():
+'''def initNNmodel():
 
     # create a CNN
     model = Sequential()
-    model.add(Conv2D(80, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
+    model.add(Conv2D(100, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
     model.add(Flatten())
     model.add(Dense(1024 , activation = 'ReLU'))
     model.add(Dense(512 , activation = 'ReLU'))
@@ -97,7 +97,32 @@ def initNNmodel():
     # Compile the model using mean squared error loss and the Adam optimizer
     model.compile(loss='mse',optimizer='adam', metrics=['accuracy'])
     print(model.summary())
-    return model
+    return model'''
+
+def initNNmodel():
+    # Define the input shape
+    input_shape = (3, height//block_size, width//block_size)
+
+    # Create a Sequential model
+    model = Sequential()
+
+    # Add a 2D convolutional layer with 32 filters, a kernel size of 3x3, and relu activation
+    model.add(Conv2D(100, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
+
+    # Add a flatten layer to convert the 2D output to a 1D vector
+    model.add(Flatten())
+    model.add(Dense(1024 , activation = 'ReLU'))
+    model.add(Dense(512 , activation = 'ReLU'))
+    model.add(Dense(256 , activation = 'ReLU'))
+    # Add the output layer with one unit and sigmoid activation
+    model.add(Dense(len(actions), activation='linear'))
+
+    # Compile the model with binary cross-entropy loss and adam optimizer
+    model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
+
+    # Print the model summary
+    model.summary()
+    return(model)
 
 #returns a vector that has the state of snake and apple ( the NN input vector ) 
 '''def state(snake_list,apple):
@@ -169,7 +194,7 @@ def reward(action, snake_list,episode_length):
     # reward the agent for eating the food
     reward_eat = 1 if u == food_x and v == food_y else 0
     # penalize the agent for moving away from the food
-    penalty_distance = -2 if normalized_distance(u,v,food_x,food_y) > normalized_distance(p[0], p[1], food_x, food_y) else 1
+    penalty_distance = -1 if normalized_distance(u,v,food_x,food_y) > normalized_distance(p[0], p[1], food_x, food_y) else 0.5
     # penalize he agent for hitting a wall
     penalty_wall = -1 if not (inBounds(u,v)) else 0
     #penalize the agent for getting closer to danger
@@ -177,13 +202,15 @@ def reward(action, snake_list,episode_length):
     #print(penalty_danger)
     compacity_value = 1/compacity(snake_list)
     #accessible points 
-    accessible_points_proportion = find_accessible_points(snake_list)
-    episode_length_penalty = -episode_length/(width*height//block_size**2+2)/5
+    accessible_points_proportion = find_accessible_points(snake_list)-1
+    episode_length_penalty = -episode_length/(width*height//block_size**2)
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value,episode_length_penalty])
+  
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity','episode_len_penalty']
-    c = np.array([5,1,3,0,1,3,0,0,0])
+    c = np.array([0,1,0,0,0,0,0,0,0])
 
-    total_reward = penalties@c/c.sum()
+    total_reward = penalties@c/c.sum() 
+    
 
    # total_reward = accessible_points_proportion*gass_reward
     #total_reward = penalty_distance + 10*reward_eat
@@ -223,9 +250,9 @@ def find_accessible_points(snake_list):
 
 #initialize NN
 filename = str(width)+" " + str(height)+" CNNDeepQ.h5"
-if(os.path.exists("./"+filename)):
+if(os.path.exists("./DenseSnake/"+filename)):
     print("model already exists ")
-    model = keras.models.load_model("./"+filename)
+    model = keras.models.load_model("./DenseSnake/"+filename)
 
 else: 
 
@@ -325,9 +352,7 @@ def main(gen,length,maxlen):
             check = episode_length
         episode_length+=1
 #
-       # if(episode_length%1000 ==0):
-       #     dql.train(episode_length)
-        if((episode_length-check)%((width*height//block_size**2)*5) ==0 ):
+        if((episode_length-check)%((width*height//block_size**2)*2) ==0 ):
   
             #dql.exploration_rate/= dql.decay_rate
             done = True
@@ -344,7 +369,7 @@ num_episodes =10000000
 #maximum score reached
 m =0 
 #initial max length for the snake at birth
-max_length = 1
+max_length = 10
 #maximum allowed length for a snake 
 max_max_length = width*height//block_size**2
 #max_length = width*height//block_size**2//20
@@ -357,14 +382,16 @@ for i in range(num_episodes):
     #update maximum score 
     m = max(a[2],m)
     #generate a new food position every 20 generations
-    if(i%20 ==0):
+    if(i%2 ==0):
         food_x, food_y = generate_food([])   
     #increase maximum birth length every 1000 generation 
     if((i+1)%20==0):
-        model.save(str(width)+" " + str(height)+" DeepQ.h5")
+        model.save("./DenseSnake/"+str(width)+" " + str(height)+" DeepQ.h5")
         max_length+=1
         #dql.exploration_rate = 0.9
     print("episode reward : ", a[-1])
     #train the DQL 
     dql.train(a[1])
     dql.evaluate()
+
+

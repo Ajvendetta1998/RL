@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.99, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.95, base_exploration_rate = 0.1,validation_batch_size = 100):
+    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.98, base_exploration_rate = 0.1,validation_batch_size = 100):
         #NN
         self.model = model
         self.actions = actions
@@ -31,6 +31,8 @@ class DQL:
             (u, v) = (snake_list[-1][0] + acts[p][1] * block_size, snake_list[-1][1] + acts[p][0] * block_size)
             if (u < 0 or u >= width or v < 0 or v >= height or [u, v] in snake_list):
                 possible_moves.remove(p)
+
+        
         if (len(possible_moves) > 0):
             if np.random.rand() < self.base_exploration_rate + self.exploration_rate:
                 # Choose a random action
