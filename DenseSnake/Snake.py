@@ -22,14 +22,14 @@ height = 700
 #plt.imshow(heatmap, cmap='hot', interpolation='nearest')
 #plt.show(block=False)
 
-pygame.init()   
+#pygame.init()   
 
 
 # Create display surface
-screen = pygame.display.set_mode((width, height))
+#screen = pygame.display.set_mode((width, height))
 
 # Set title for the display window
-pygame.display.set_caption("Snake Game CNN")
+#pygame.display.set_caption("Snake Game CNN")
 
 # Define colors
 white = (255, 255, 255)
@@ -39,10 +39,10 @@ grey = (100,100,100)
 green = (0, 255, 0)
 dark_green = (0, 100, 0)
 # Set clock to control FPS
-clock = pygame.time.Clock()
+#clock = pygame.time.Clock()
 
 # Font for displaying score
-font = pygame.font.Font(None, 30)
+#font = pygame.font.Font(None, 30)
 
 # FPS
 fps = 6
@@ -179,6 +179,7 @@ def danger_distance(direction, snake_list):
             return (-1+1.0*dis*block_size/max(width,height))
         dis+=1
     return(0)
+c = np.array([0.07384498 ,0.22320404, 0.35702913, 0.16634697 ,0.43330046, 0.20548595,0.16672019, 0.37093725 ,0.40390116])
 #reward function for each state and action
 def reward(action, snake_list,episode_length):
     copy = deepcopy(snake_list)
@@ -212,7 +213,7 @@ def reward(action, snake_list,episode_length):
     penalties = np.array([accessible_points_proportion,penalty_distance,penalty_touch_self,penalty_distance*gass_reward,reward_eat,penalty_wall,penalty_danger,compacity_value,episode_length_penalty])
   
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity','episode_len_penalty']
-    c = np.array([4,3,1,0,3,1,0,2,3])
+
 
     total_reward = 2*penalties@c/c.sum() 
     
@@ -299,13 +300,13 @@ def main(gen,length,maxlen):
     # Game loop
     check = 0 
     while True:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+        #for event in pygame.event.get():
+            #if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 # Start a new game
-                main()
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                #main()
+            #if event.type == pygame.QUIT:
+                #pygame.quit()
+                #sys.exit()
 
 
         St1 = state(snake_list,[food_x,food_y]) 
@@ -331,24 +332,24 @@ def main(gen,length,maxlen):
                 break
 
         # Fill the screen with white color
-        screen.fill(white)
+        #screen.fill(white)
 
         # Display food
-        pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
-        pygame.draw.rect(screen, green, [food_x + block_size/3, food_y, block_size/3, block_size/3])
+        #pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
+        #pygame.draw.rect(screen, green, [food_x + block_size/3, food_y, block_size/3, block_size/3])
 
         # Draw the snake
-        draw_snake(snake_list)
+        #draw_snake(snake_list)
 
         St2 = state(snake_list,[food_x,food_y])
         #add to Buffer
         episode_reward= dql.add_memory(St1,a,r,St2,done,episode_reward)
 
         # Display score and other metrics
-        display_score(snake_length-1,gen,score,maxlen,episode_length-check,)
+        #display_score(snake_length-1,gen,score,maxlen,episode_length-check,)
 
         # Update the display
-        pygame.display.update()
+        #pygame.display.update()
 
         # Check if snake hits the food
         if snake_x == food_x and snake_y == food_y:
@@ -370,35 +371,46 @@ def main(gen,length,maxlen):
         # Set the FPS
         #clock.tick(fps)
         #dql.train()
+best_c = c.copy()
 
-#number of episodes
-num_episodes =10000000
-#maximum score reached
-m =0 
-#initial max length for the snake at birth
-max_length = 20
-#maximum allowed length for a snake 
-max_max_length = width*height//block_size**2
-#max_length = width*height//block_size**2//20
-
-
-#generation of episodes 
-for i in range(num_episodes):
-    #do a generation and see the outcome
-    a= main(i,np.random.randint(1,max_length+1),m)
-    #update maximum score 
-    m = max(a[2],m)
-    #generate a new food position every 20 generations
-    if(i%2 ==0):
-        food_x, food_y = generate_food([])   
-    #increase maximum birth length every 1000 generation 
-    if((i+1)%20==0):
-        model.save("./DenseSnake/"+str(width)+" " + str(height)+" DeepQ.h5")
-        max_length+=1
-        #dql.exploration_rate = 0.9
-    print("episode reward : ", a[-1])
-    #train the DQL 
-    dql.train(a[1])
-    dql.evaluate()
-
+max_m = 0
+test = 0
+while(True):
+    model = initNNmodel()
+    dql = DQL(model,actions.values())
+    
+    #number of episodes
+    num_episodes =40
+    #maximum score reached
+    m =0 
+    #initial max length for the snake at birth
+    max_length = 20
+    #maximum allowed length for a snake 
+    max_max_length = width*height//block_size**2
+    #max_length = width*height//block_size**2//20
+    
+    #generation of episodes 
+    for i in range(num_episodes):
+        print("maxsc ", max_m, "test:",test,"\t gen:",i,"\t",c,"\n",best_c)
+        #do a generation and see the outcome
+        a= main(i,np.random.randint(1,max_length+1),m)
+        #update maximum score 
+        m = max(a[2],m)
+        #generate a new food position every 20 generations
+        if(i%2 ==0):
+            food_x, food_y = generate_food([])   
+        #increase maximum birth length every 1000 generation 
+        if((i+1)%20==0):
+            model.save("./DenseSnake/"+str(width)+" " + str(height)+" DeepQ.h5")
+            max_length+=1
+            #dql.exploration_rate = 0.9
+        #print("episode reward : ", a[-1])
+        #train the DQL 
+        dql.train(a[1])
+        dql.evaluate()
+    test+=1
+    if(m>max_m):
+        c= np.random.rand(9)
+        best_c = c.copy()
+        max_m = m
 

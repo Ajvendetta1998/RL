@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.98, base_exploration_rate = 0.1,validation_batch_size = 100):
+    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.957007077981386971307462669518, base_exploration_rate = 0.1,validation_batch_size = 100):
         #NN
         self.model = model
         self.actions = actions
@@ -120,8 +120,8 @@ class DQL:
                 target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
         j = np.random.randint(len(target_q_values))
 
-        print(target_q_values[j],self.model.predict(np.array([states[j]]))[0])
+        #print(target_q_values[j],self.model.predict(np.array([states[j]]))[0])
 
-        self.model.evaluate(states, target_q_values  )
+        self.model.evaluate(states, target_q_values  ,verbose = 0)
 
-        print("Exploration rate " , self.exploration_rate)
+       # print("Exploration rate " , self.exploration_rate)
