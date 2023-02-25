@@ -9,27 +9,28 @@ import numpy as np
 import os 
 import keras 
 import sys 
+from copy import deepcopy
 import matplotlib.pyplot as plt
 # Snake block size
 block_size = 25
 
 
 # Set display width and height
-width = 700 
-height = 700
+width = 500 
+height = 500
 
 #heatmap = np.zeros((height // block_size, width // block_size))
 #plt.imshow(heatmap, cmap='hot', interpolation='nearest')
 #plt.show(block=False)
 
-#pygame.init()   
+pygame.init()   
 
 
 # Create display surface
-#screen = pygame.display.set_mode((width, height))
+screen = pygame.display.set_mode((width, height))
 
 # Set title for the display window
-#pygame.display.set_caption("Snake Game CNN")
+pygame.display.set_caption("Snake Game CNN")
 
 # Define colors
 white = (255, 255, 255)
@@ -39,10 +40,10 @@ grey = (100,100,100)
 green = (0, 255, 0)
 dark_green = (0, 100, 0)
 # Set clock to control FPS
-#clock = pygame.time.Clock()
+clock = pygame.time.Clock()
 
 # Font for displaying score
-#font = pygame.font.Font(None, 30)
+font = pygame.font.Font(None, 30)
 
 # FPS
 fps = 6
@@ -112,13 +113,13 @@ def initNNmodel():
     model = Sequential()
 
     # Add a 2D convolutional layer with 32 filters, a kernel size of 3x3, and relu activation
-    model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
+    model.add(Conv2D(80, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
 
     # Add a flatten layer to convert the 2D output to a 1D vector
     model.add(Flatten())
-    model.add(Dense(1024 , activation = 'ReLU'))
     model.add(Dense(512 , activation = 'ReLU'))
     model.add(Dense(256 , activation = 'ReLU'))
+    model.add(Dense(128 , activation = 'ReLU'))
     # Add the output layer with one unit and sigmoid activation
     model.add(Dense(len(actions), activation='linear'))
 
@@ -180,6 +181,10 @@ def danger_distance(direction, snake_list):
         dis+=1
     return(0)
 c = np.array([0.07384498 ,0.22320404, 0.35702913, 0.16634697 ,0.43330046, 0.20548595,0.16672019, 0.37093725 ,0.40390116])
+c = np.array([0.09409899 ,0.50432653 ,0.5954271  ,0.77371619 ,0.78763683 ,0.18556663
+ ,0.55122318, 0.07011046 ,0.98626544])
+c = np.array([0.13912355 ,0.33415038 ,0.82129313 ,0.07914637 ,0.98061899 ,0.27590337
+ ,0.50013284 ,0.26876494 ,0.55485686])
 #reward function for each state and action
 def reward(action, snake_list,episode_length):
     copy = deepcopy(snake_list)
@@ -215,8 +220,7 @@ def reward(action, snake_list,episode_length):
     penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity','episode_len_penalty']
 
 
-    total_reward = 2*penalties@c/c.sum() 
-    
+    total_reward = penalties@c/c.sum() 
 
    # total_reward = accessible_points_proportion*gass_reward
     #total_reward = penalty_distance + 10*reward_eat
@@ -300,13 +304,13 @@ def main(gen,length,maxlen):
     # Game loop
     check = 0 
     while True:
-        #for event in pygame.event.get():
-            #if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 # Start a new game
-                #main()
-            #if event.type == pygame.QUIT:
-                #pygame.quit()
-                #sys.exit()
+                main()
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
 
 
         St1 = state(snake_list,[food_x,food_y]) 
@@ -332,24 +336,24 @@ def main(gen,length,maxlen):
                 break
 
         # Fill the screen with white color
-        #screen.fill(white)
+        screen.fill(white)
 
         # Display food
-        #pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
-        #pygame.draw.rect(screen, green, [food_x + block_size/3, food_y, block_size/3, block_size/3])
+        pygame.draw.rect(screen, red, [food_x, food_y, block_size, block_size])
+        pygame.draw.rect(screen, green, [food_x + block_size/3, food_y, block_size/3, block_size/3])
 
         # Draw the snake
-        #draw_snake(snake_list)
+        draw_snake(snake_list)
 
         St2 = state(snake_list,[food_x,food_y])
         #add to Buffer
         episode_reward= dql.add_memory(St1,a,r,St2,done,episode_reward)
 
         # Display score and other metrics
-        #display_score(snake_length-1,gen,score,maxlen,episode_length-check,)
+        display_score(snake_length-1,gen,score,maxlen,episode_length-check,)
 
         # Update the display
-        #pygame.display.update()
+        pygame.display.update()
 
         # Check if snake hits the food
         if snake_x == food_x and snake_y == food_y:
@@ -360,7 +364,7 @@ def main(gen,length,maxlen):
             check = episode_length
         episode_length+=1
 #
-        if((episode_length-check)%((width*height//block_size**2)*2) ==0 ):
+        if((episode_length-check)%((width*height//block_size**2)) ==0 ):
   
             #dql.exploration_rate/= dql.decay_rate
             done = True
@@ -371,7 +375,8 @@ def main(gen,length,maxlen):
         # Set the FPS
         #clock.tick(fps)
         #dql.train()
-best_c = c.copy()
+c = np.array([0.5]*9)
+best_c = deepcopy(c)
 
 max_m = 0
 test = 0
@@ -384,14 +389,14 @@ while(True):
     #maximum score reached
     m =0 
     #initial max length for the snake at birth
-    max_length = 20
+    max_length = 1
     #maximum allowed length for a snake 
     max_max_length = width*height//block_size**2
     #max_length = width*height//block_size**2//20
     
     #generation of episodes 
     for i in range(num_episodes):
-        print("maxsc ", max_m, "test:",test,"\t gen:",i,"\t",c,"\n",best_c)
+        print("maxsc ", max_m, "\n",best_c, "\ntest:",test,"\t gen:",i,"\t",c)
         #do a generation and see the outcome
         a= main(i,np.random.randint(1,max_length+1),m)
         #update maximum score 
@@ -410,7 +415,9 @@ while(True):
         dql.evaluate()
     test+=1
     if(m>max_m):
-        c= np.random.rand(9)
-        best_c = c.copy()
+        
+        best_c = deepcopy(c)
+
         max_m = m
+    c= np.array([np.random.uniform(np.clip(x-0.3,0,1),np.clip(x+0.3,0,1)) for x in best_c])
 

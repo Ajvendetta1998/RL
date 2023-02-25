@@ -3,7 +3,7 @@ from collections import deque
 import numpy as np
 
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.957007077981386971307462669518, base_exploration_rate = 0.1,validation_batch_size = 100):
+    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.995, decay_rate=0.955, base_exploration_rate = 0.1,validation_batch_size = 100):
         #NN
         self.model = model
         self.actions = actions
