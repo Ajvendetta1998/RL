@@ -115,12 +115,7 @@ def initNNmodel():
 
     # Create a Sequential model
     model = Sequential()
-
-    # Add a 2D convolutional layer with 32 filters, a kernel size of 3x3, and relu activation
-    model.add(Conv2D(80, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
-
-    # Add a flatten layer to convert the 2D output to a 1D vector
-    model.add(Flatten())
+    model.add(Dense(1024,activation='ReLU',input_shape=(None,input_size)))
     model.add(Dense(512 , activation = 'ReLU'))
     model.add(Dense(256 , activation = 'ReLU'))
     model.add(Dense(128 , activation = 'ReLU'))
@@ -148,19 +143,25 @@ def initNNmodel():
     input=input.reshape(1,input_size)
     return input'''
 def state(snake_list,apple):
-    layer_head = np.zeros((height//block_size,width//block_size))
-    layer_tail = np.zeros((height//block_size,width//block_size))
-    layer_apple = np.zeros((height//block_size,width//block_size))
-    layer_head[snake_list[-1][0]//block_size-1, snake_list[-1][1]//block_size-1] =1 
-    layer_apple[apple[0]//block_size-1, apple[1]//block_size-1] =1 
-    for s in snake_list[:-1]:
-        layer_tail[s[0]//block_size-1, s[1]//block_size-1] =1 
-    input = np.zeros( (3,height//block_size, width//block_size))
-    input[0,:,:] = layer_head
-    input[1,:,:] = layer_tail
-    input[2,:,:] = layer_apple
+    s = np.array(snake_list)
+    #mini0 = int(min(s[:,0].min(),apple[0]))
+    #mini1 = int(min(s[:,1].min(),apple[1]))
+    #maxi0 = int(max(s[:,0].max(),apple[0]))
+    #maxi1 = int(max(s[:,1].max(),apple[1]))
 
-    return(input)
+    #centralize the game
+    #apple[0]-=(mini0+maxi0-width)//2
+    #apple[1] -= (mini1+maxi1-height)//2
+    #s[:,0] -=(mini0+maxi0-width)//2
+    #s[:,1]-= (mini1+maxi1-height)//2
+    #create an input vector starting from the apple, head .. the rest of the tail 
+    input = np.zeros(input_size)
+    input[0],input[1] = apple[0]/width,apple[1]/height
+    for u in range(len(snake_list)):
+        if(2*u+2>=input_size):
+            break
+        input[2*u+2],input[2*u+3]= s[len(snake_list)-1-u][0]/width,s[len(snake_list)-1-u][1]/height
+    return input
 
 def normalized_distance(u,v,food_x,food_y):
     return np.sqrt((((u-food_x)/width)**2+((v-food_y)/height)**2)/2)
@@ -258,7 +259,7 @@ def find_accessible_points(snake_list):
     return((np.sum(accessible_points)+len(snake_list)-1)*block_size**2/(height*width))
 
 #initialize NN
-filename = str(width)+" " + str(height)+" CNNDeepQ.h5"
+filename = str(width)+" " + str(height)+" DeepQ.h5"
 if(os.path.exists("./"+filename)):
     print("model already exists ")
     model = keras.models.load_model("./"+filename)
@@ -266,8 +267,8 @@ if(os.path.exists("./"+filename)):
 else: 
 
     model = initNNmodel()
-max_exploration_episodes = 30
-max_exploration_rate = 0.3
+max_exploration_episodes = 150
+max_exploration_rate = 0.2
 min_exploration_rate = 0.05
 decay_rate = (min_exploration_rate/max_exploration_rate)**(1.0/max_exploration_episodes)
 #initialize deepQ

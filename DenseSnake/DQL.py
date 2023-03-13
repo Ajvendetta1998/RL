@@ -3,10 +3,11 @@ from collections import deque
 import numpy as np
 
 class DQL:
-    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=1000000, batch_size=500,base_decay_rate = 0.995, decay_rate=0.955, base_exploration_rate = 0.1,validation_batch_size = 100):
+    def __init__(self, model, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=100000, batch_size=500,base_decay_rate = 0.99995, decay_rate=0.98565207, base_exploration_rate = 0.1,validation_batch_size = 100 ,epochs = 1):
         #NN
         self.model = model
         self.actions = actions
+        self.epochs = epochs
         #gamma
         self.discount_factor = discount_factor
         #for epsilon-greedy
@@ -22,7 +23,7 @@ class DQL:
         self.base_exploration_rate = base_exploration_rate
 
     def get_action(self, state, direction, snake_list, block_size, width, height):
-        action = np.random.randint(len(self.actions))
+        action = direction
         possible_moves = list(range(0, len(self.actions)))
         # eliminate all impossible moves
         acts = list(self.actions)
@@ -93,7 +94,7 @@ class DQL:
 
         # Train the model with the target Q-values
         # we want for qw(St,a) to become target_q[a]
-        self.model.fit(states,target_q_values,epochs=1, verbose = 0)
+        self.model.fit(states,target_q_values,epochs=self.epochs, verbose = 0)
 
 
     def evaluate(self):
