@@ -1,16 +1,128 @@
 
-from DQL import DQL 
 import pygame 
 import random
-from keras.models import Sequential
-from keras.layers import Dense, Flatten, Conv2D, MaxPooling2D
 from copy import deepcopy
 import numpy as np 
 import os 
-import keras 
 import sys 
 from copy import deepcopy
 import matplotlib.pyplot as plt
+from collections import deque
+import tensorflow as tf
+
+
+class DQL:
+    def __init__(self, model, criterion, optimizer, actions, discount_factor=0.6, exploration_rate=0.9, memory_size=100000, batch_size=500,base_decay_rate = 0.995, decay_rate=0.98565207, base_exploration_rate = 0.1,validation_batch_size = 100 ,epochs = 1,device = 'cpu'):
+        #NN
+        self.model = model
+        self.actions = actions
+        self.epochs = epochs
+        self.device = device
+        self.criterion = criterion
+        self.optimizer = optimizer
+        #gamma
+        self.discount_factor = discount_factor
+        #for epsilon-greedy
+        self.exploration_rate = exploration_rate
+        #buffer
+        self.memory = deque(maxlen=memory_size)
+        self.evalmemory  = deque(maxlen = memory_size)
+        self.batch_size = batch_size
+        #diminish exploration 
+        self.base_decay_rate = base_decay_rate
+        self.decay_rate = decay_rate
+        self.validation_batch_size = validation_batch_size
+        self.base_exploration_rate = base_exploration_rate
+
+    def get_action(self, state, direction, snake_list, block_size, width, height):
+        action = direction
+        possible_moves = list(range(0, len(self.actions)))
+
+        # eliminate all impossible moves
+        acts = list(self.actions)
+        poss_copy = possible_moves.copy()
+        for p in poss_copy:
+            (u, v) = (snake_list[-1][0] + acts[p][1] * block_size, snake_list[-1][1] + acts[p][0] * block_size)
+            if (u < 0 or u >= width or v < 0 or v >= height or [u, v] in snake_list[1:]):
+                possible_moves.remove(p)
+
+        if len(possible_moves) > 0:
+            if np.random.rand() < self.base_exploration_rate + self.exploration_rate:
+                # Choose a random action
+                action = possible_moves[np.random.randint(len(possible_moves))]
+            else:
+                # Choose the best action according to the model
+                with torch.no_grad():
+
+                    q_values = self.model(torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device))
+                    q_values = q_values.squeeze(0)
+
+                sorted = q_values.argsort(descending=True)
+                for s in sorted:
+                    if s in possible_moves:
+                        action = s
+                        break
+
+        return action
+
+
+    def add_memory(self, state, action, reward, next_state, done,episode_reward):
+        x = np.random.rand()
+
+        if(x<0.9):
+            self.memory.append((state, action, reward, next_state, done))
+        else:
+            self.evalmemory.append((state, action, reward, next_state, done))
+        episode_reward=episode_reward*self.discount_factor+reward
+        return episode_reward
+    
+    def train(self, batch_size):
+        if len(self.memory) < batch_size:
+            # Not enough memories to train the model
+            return
+
+        # Randomly sample memories from the replay buffer
+        batch = random.sample(self.memory, batch_size)
+        states, actions, rewards, next_states, dones = [], [], [], [], []
+
+        for state, action, reward, next_state, done in batch:
+            states.append(state)
+            actions.append(action)
+            rewards.append(reward)
+            next_states.append(next_state)
+            dones.append(done)
+
+        states = torch.tensor(states).float().to(self.device)
+        actions = torch.tensor(actions).long().to(self.device)
+        rewards = torch.tensor(rewards).float().to(self.device)
+        next_states = torch.tensor(next_states).float().to(self.device)
+        dones = torch.tensor(dones).float().to(self.device)
+
+        # Decrease the exploration rate
+        self.exploration_rate *= self.decay_rate
+        self.base_exploration_rate *= self.base_decay_rate
+
+        target_q_values = np.zeros((batch_size,len(self.actions)))
+
+        # Calculate the target Q-values
+        with torch.no_grad():
+            next_q_values = self.model(next_states).to(self.device)
+            for i in range(batch_size):
+                if dones[i]:
+                    target_q_values[i][actions[i]] = rewards[i]
+
+                else:
+                    target_q_values[i][actions[i]] = rewards[i] + self.discount_factor * max(next_q_values[i])
+        target_q_values = torch.tensor(target_q_values).float().to(self.device)
+
+            # Train the model for a specified number of epochs
+        for epoch in range(self.epochs):
+            predicted_q_values = self.model(states)
+            loss = nn.functional.mse_loss(predicted_q_values, target_q_values)
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+
 # Snake block size
 block_size = 25
 
@@ -45,7 +157,7 @@ clock = pygame.time.Clock()
 penalty_names  = ['accessible_points_proportion','penalty_distance','penalty_touch_self','penalty_distance*gass_reward','reward_eat','penalty_wall','penalty_danger','compacity','episode_len_penalty']
 c = np.array([0.4,0.5,0.3,0.1,0.6,0.3,0.2,0.1,0.4])
 #c = np.array([0.5525170689977776,0.9582674747339271,0.025280188852446105,0.5910711871018972,0.820824845042075,0.11647511348340267,0.4174262886175807,0.18321977917311702,0.604671417871147])
-c = np.array([0.3869715852256136,0.5254869870433494,0.2203822793872801,0.40087986200533904,0.3399549149174315,0.29913072453369155,0.5875165725424327,0.3464123490760858,0.4896371909472169])
+#c = np.array([0.3869715852256136,0.5254869870433494,0.2203822793872801,0.40087986200533904,0.3399549149174315,0.29913072453369155,0.5875165725424327,0.3464123490760858,0.4896371909472169])
 # Font for displaying score
 font = pygame.font.Font(None, 30)
 
@@ -92,61 +204,51 @@ actions = {"up":(-1,0),"down":(1,0),"left":(0,-1),"right":(0,1)}
 input_size = 2*width*height//block_size**2+2
 
 
-'''def initNNmodel():
 
-    # create a CNN
-    model = Sequential()
-    model.add(Conv2D(100, kernel_size = 3 , input_shape=(3,width//block_size, height//block_size), activation='ReLU'))
-    model.add(Flatten())
-    model.add(Dense(1024 , activation = 'ReLU'))
-    model.add(Dense(512 , activation = 'ReLU'))
-    model.add(Dense(256 , activation = 'ReLU'))
-    model.add(Dense(128,activation = 'ReLU'))
-    model.add(Dense(len(actions), activation='linear'))
-
-    # Compile the model using mean squared error loss and the Adam optimizer
-    model.compile(loss='mse',optimizer='adam', metrics=['accuracy'])
-    print(model.summary())
-    return model'''
-
+import torch
+import torch.nn as nn
+device = 'cpu'
 def initNNmodel():
     # Define the input shape
     input_shape = (3, height//block_size, width//block_size)
 
     # Create a Sequential model
-    model = Sequential()
+    model = nn.Sequential(
+        # Add a 2D convolutional layer with 80 filters, a kernel size of 3x3, and ReLU activation
+        nn.Conv2d(3, 32, kernel_size=3, padding=1),
+        nn.ReLU(),
+        
+        # Add a flatten layer to convert the 2D output to a 1D vector
+        nn.Flatten(),
+        
+        # Add 3 fully connected layers with ReLU activation
+        nn.Linear(32 * (height // block_size) * (width // block_size), 2048),
+        nn.ReLU(),
+        nn.Linear(2048, 1024),
+        nn.ReLU(),
+        nn.Linear(1024, 512),
+        nn.ReLU(),
+        
+        # Add the output layer with len(actions) units
+        nn.Linear(512, len(actions))
+    )
+    global device
+    # Move the model to GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
+    model.to(device)
 
-    # Add a 2D convolutional layer with 32 filters, a kernel size of 3x3, and relu activation
-    model.add(Conv2D(80, kernel_size=(3, 3), activation='relu', padding='same', input_shape=input_shape))
-
-    # Add a flatten layer to convert the 2D output to a 1D vector
-    model.add(Flatten())
-    model.add(Dense(512 , activation = 'ReLU'))
-    model.add(Dense(256 , activation = 'ReLU'))
-    model.add(Dense(128 , activation = 'ReLU'))
-    # Add the output layer with one unit and sigmoid activation
-    model.add(Dense(len(actions), activation='linear'))
-
-    # Compile the model with binary cross-entropy loss and adam optimizer
-    model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
+    # Define the loss function and optimizer
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters())
 
     # Print the model summary
-    model.summary()
-    return(model)
+    print(model)
+
+    return model, criterion, optimizer
 
 #returns a vector that has the state of snake and apple ( the NN input vector ) 
-'''def state(snake_list,apple):
-    s = np.array(snake_list)
 
-    #create an input vector starting from the apple, head .. the rest of the tail 
-    input = np.zeros(input_size)
-    input[0],input[1] = apple[0]/width,apple[1]/height
-    for u in range(len(snake_list)):
-        if(2*u+2>=input_size):
-            break
-        input[2*u+2],input[2*u+3]= s[len(snake_list)-1-u][0]/width,s[len(snake_list)-1-u][1]/height
-    input=input.reshape(1,input_size)
-    return input'''
 def state(snake_list,apple):
     layer_head = np.zeros((height//block_size,width//block_size))
     layer_tail = np.zeros((height//block_size,width//block_size))
@@ -257,21 +359,15 @@ def find_accessible_points(snake_list):
 
     return((np.sum(accessible_points)+len(snake_list)-1)*block_size**2/(height*width))
 
-#initialize NN
-filename = str(width)+" " + str(height)+" CNNDeepQ.h5"
-if(os.path.exists("./"+filename)):
-    print("model already exists ")
-    model = keras.models.load_model("./"+filename)
 
-else: 
+model, criterion, optimizer = initNNmodel()
 
-    model = initNNmodel()
-max_exploration_episodes = 30
-max_exploration_rate = 0.3
+max_exploration_episodes = 1
+max_exploration_rate = 0.9
 min_exploration_rate = 0.05
 decay_rate = (min_exploration_rate/max_exploration_rate)**(1.0/max_exploration_episodes)
 #initialize deepQ
-dql = DQL(model,actions.values(),decay_rate = decay_rate ,exploration_rate= max_exploration_rate )
+dql = DQL(model, criterion, optimizer,actions.values(),decay_rate = decay_rate ,exploration_rate= max_exploration_rate ,device = device,epochs=10)
 # Initialize pygame
 
 food_x, food_y = generate_food([])   
@@ -402,9 +498,7 @@ for i in range(num_episodes):
     if(i%2 ==0):
         food_x, food_y = generate_food([])   
     #increase maximum birth length every 1000 generation 
-    if((i+1)%40==0):
-        model.save("./"+filename)
-        max_length+=1
+    
         #dql.exploration_rate = 0.9
     print("episode reward : ", a[-1], "Exploration Rate : ", dql.exploration_rate+dql.base_exploration_rate)
     #train the DQL 
